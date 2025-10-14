@@ -1,0 +1,42 @@
+# ========== ROS / Catkin build files ==========
+build/
+devel/
+install/
+log/
+*.bag
+*.log
+
+# ========== Catkin meta files ==========
+.catkin_workspace
+CATKIN_IGNORE
+
+# ========== IDE & editor files ==========
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ========== Python cache ==========
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ========== Temporary / zipped files ==========
+*.zip
+# *.tar
+# *.tar.gz
+# *.tgz
+
+# ========== Custom workspace exclusions ==========
+Fastlio2_ws/
+Fastlio_localization_ws/
+Livox_ws/
+ws_system/
+dispatch_ws/src/dispatch_control/Map/ntuitive_align/
+dispatch_ws/src/dispatch_control/Map/outside/
+
+# ========== Others ==========
+*.launch~
+*.tmp
+*.bak
