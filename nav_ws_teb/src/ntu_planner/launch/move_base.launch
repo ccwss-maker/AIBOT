@@ -1,0 +1,45 @@
+<launch>
+  <group ns="robot1">
+      <node name="map_server" pkg="map_server" type="map_server" args="$(find dispatch_control)/Map/ntuitive_align/2m/map.yaml"/>
+      
+      <!-- <node pkg="tf" type="static_transform_publisher" name="static_tf_local_to_ntu"
+            args="0.5 0 0 0 0 0 local_map ntu_local_map 100" /> -->
+      
+      <!-- <node pkg="ntu_planner" type="pointcloud2_filter.py" name="pointcloud2_filter" output="screen"/> -->
+
+      <node pkg="ntu_planner" type="reload_planning_controller.py" name="reload_planning_controller" output="screen"/>
+
+      <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+        <rosparam file="$(find ntu_planner)/config/move_base_params.yaml" command="load" />
+        <rosparam file="$(find ntu_planner)/config/costmap_common_params_global.yaml" command="load" ns="global_costmap" />
+        <rosparam file="$(find ntu_planner)/config/costmap_common_params_local.yaml" command="load" ns="local_costmap" />
+        <rosparam file="$(find ntu_planner)/config/local_costmap_params.yaml" command="load" />
+        <rosparam file="$(find ntu_planner)/config/global_costmap_params.yaml" command="load" />
+        <rosparam file="$(find ntu_planner)/config/base_local_planner_params.yaml" command="load" />
+        <param name="recovery_behavior_enabled" value="false"/>
+        <remap from="cmd_vel" to="/base_cmd_vel"/>
+      </node>
+
+      <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">
+        <!-- <remap from="cloud_in" to="/local_map"/> -->
+        <remap from="cloud_in" to="/merged_pointcloud_sliced"/>
+        <remap from="scan" to="/local_map_laserscan"/>
+        <rosparam>
+          target_frame: local_map  # 目标坐标系
+          transform_tolerance: 0.01
+          <!-- min_height: -0.2
+          max_height: 1.5 -->
+          min_height: 0.0
+          max_height: 1.45
+          angle_min: -3.14159  # -180度
+          angle_max: 3.14159   # 180度
+          angle_increment: 0.0087  # 0.5度
+          scan_time: 0.1
+          range_min: 0.1
+          range_max: 10.0
+          use_inf: true
+          inf_epsilon: 1.0
+        </rosparam>
+      </node>
+  </group>
+</launch>

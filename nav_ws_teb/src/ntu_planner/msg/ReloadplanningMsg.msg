@@ -1,0 +1,2 @@
+string map_path
+geometry_msgs/PoseStamped goal_pose

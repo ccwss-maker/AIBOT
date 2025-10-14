@@ -1,0 +1,31 @@
+footprint: [[0.45, 0.30], [0.45, -0.30], [-0.45, -0.30], [-0.45, 0.30]]
+# footprint: [[0.37,0.27],[0.37,-0.33],[-0.53,-0.33],[-0.53,0.27]]
+transform_tolerance: 0.2
+map_type: costmap
+inflation_radius: 0.6
+cost_scaling_factor: 5
+obstacle_layer:
+ enabled: true
+ obstacle_range: 5.0
+ raytrace_range: 3.5
+ inflation_radius: 0.2
+ track_unknown_space: false
+ combination_method: 1
+ max_obstacle_height: 1.0
+ min_obstacle_height: 0
+#  observation_sources: laser_scan_sensor
+
+#  laser_scan_sensor: 
+#   data_type: PointCloud2
+#   topic: /local_map_filtered 
+#   sensor_frame: local_map 
+#   marking: true 
+#   clearing: true 
+#   max_obstacle_height: 10.0 
+#   min_obstacle_height: 0.0
+inflation_layer:
+  enabled:              true
+  # cost_scaling_factor:  10.0  # exponential rate at which the obstacle cost drops off (default: 10)
+static_layer:
+  enabled:              true
+  map_topic:            "map"
