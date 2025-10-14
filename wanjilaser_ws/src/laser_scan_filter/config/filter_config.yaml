@@ -1,0 +1,44 @@
+front_laser:
+  topic: "/vanjee_scan716mini_front"
+  filtered_topic: "/front_filtered_points"
+  marker_topic: "/front_laser_filter_markers"
+  filter_ranges:
+    - angle_min: 80.0
+      angle_max: 180.0
+      range_min: 0.0
+      range_max: 10.0
+
+    # - angle_min: 80.0
+    #   angle_max: 100.0
+    #   range_min: 0.0
+    #   range_max: 0.6
+
+    # - angle_min: 90.0
+    #   angle_max: 100.0
+    #   range_min: 0.0
+    #   range_max: 0.82
+
+back_laser:
+  topic: "/vanjee_scan716mini_back"
+  filtered_topic: "/back_filtered_points"
+  marker_topic: "/back_laser_filter_markers"
+  filter_ranges:
+    # - angle_min: 80.0
+    #   angle_max: 90.0
+    #   range_min: 0.0
+    #   range_max: 0.5
+
+    - angle_min: 80.0
+      angle_max: 180.0
+      range_min: 0.0
+      range_max: 10.0
+
+    # - angle_min: 90.0
+    #   angle_max: 100.0
+    #   range_min: 0.0
+    #   range_max: 0.8
+
+    # - angle_min: 85.0
+    #   angle_max: 170.0
+    #   range_min: 0.0
+    #   range_max: 100.0

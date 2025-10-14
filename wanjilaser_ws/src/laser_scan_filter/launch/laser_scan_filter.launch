@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="laser_scan_filter" type="laser_scan_filter_node" name="laser_scan_filter" output="screen">
+    <param name="config_file" value="$(find laser_scan_filter)/config/filter_config.yaml" />
+  </node>
+</launch>

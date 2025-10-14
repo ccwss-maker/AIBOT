@@ -1,0 +1,19 @@
+<launch>
+  <!-- 启动双716mini雷达节点 -->
+  <node pkg="vanjee_lidar_sdk" name="vanjee_lidar_sdk_node" type="vanjee_lidar_sdk_node" output="screen">
+    <param name="config_path" value="$(find vanjee_lidar_sdk)/config/config_dual_716mini.yaml"/>
+  </node>
+
+  <!-- Laser scan filter node -->
+  <node pkg="laser_scan_filter" name="laser_scan_filter_node" type="laser_scan_filter_node" output="screen">
+    <param name="config_file" value="$(find laser_scan_filter)/config/filter_config.yaml" />
+  </node>
+
+  <!-- front lidar -->
+  <node pkg="tf" type="static_transform_publisher" name="lidar_front_tf"
+        args="0.33 0.2 0 1.5708 0 0 local_map vanjee_lidar_front 100"/>
+
+  <!-- back lidar -->
+  <node pkg="tf" type="static_transform_publisher" name="lidar_back_tf"
+        args="-0.5 -0.25 0 -1.5708 0 0 local_map vanjee_lidar_back 100"/>
+</launch>
