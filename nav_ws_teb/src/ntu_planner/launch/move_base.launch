@@ -15,7 +15,8 @@
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_local.yaml" command="load" ns="local_costmap" />
         <rosparam file="$(find ntu_planner)/config/local_costmap_params.yaml" command="load" />
         <rosparam file="$(find ntu_planner)/config/global_costmap_params.yaml" command="load" />
-        <rosparam file="$(find ntu_planner)/config/base_local_planner_params.yaml" command="load" />
+        <rosparam file="$(find ntu_planner)/config/dwa_local_planner_params.yaml" command="load" />
+        <!-- <rosparam file="$(find ntu_planner)/config/teb_local_planner_params.yaml" command="load" /> -->
         <param name="recovery_behavior_enabled" value="false"/>
         <remap from="cmd_vel" to="/base_cmd_vel"/>
       </node>
