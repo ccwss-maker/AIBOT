@@ -10,7 +10,7 @@
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_local.yaml" command="load" ns="local_costmap" />
         <rosparam file="$(find ntu_planner)/config/dwa_local_planner_params.yaml" command="load" />
         <param name="recovery_behavior_enabled" value="false"/>
-        <remap from="cmd_vel" to="/base_cmd_vel"/>
+        <!-- <remap from="cmd_vel" to="/base_cmd_vel"/> -->
       </node>
 
       <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">
