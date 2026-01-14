@@ -1,4 +1,3 @@
 # 指定规划器
 base_local_planner: dwa_local_planner/DWAPlannerROS
-# base_local_planner: teb_local_planner/TebLocalPlannerROS
 base_global_planner: navfn/NavfnROS

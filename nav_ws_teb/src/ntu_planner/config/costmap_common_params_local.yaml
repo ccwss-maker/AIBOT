@@ -1,42 +1,15 @@
 footprint: [[0.45, 0.30], [0.45, -0.30], [-0.45, -0.30], [-0.45, 0.30]]
-# footprint: [[0.37,0.27],[0.37,-0.33],[-0.53,-0.33],[-0.53,0.27]]
-transform_tolerance: 0.2
+transform_tolerance: 0.5
 map_type: costmap
 cost_scaling_factor:  1.0  # exponential rate at which the obstacle cost drops off (default: 10)
-inflation_radius:     0.25  # max. distance from an obstacle at which costs are incurred for planning paths.
+inflation_radius:     0.10  # max. distance from an obstacle at which costs are incurred for planning paths.
 obstacle_layer:
  enabled: true
  obstacle_range: 10.0
  raytrace_range: 10.0
-#  inflation_radius: 0.25
  track_unknown_space: false
  combination_method: 1
-#  observation_sources: vanjee_front_sensor vanjee_back_sensor
  observation_sources: laser_scan_sensor vanjee_front_sensor vanjee_back_sensor
-#  laser_scan_sensor: 
-#   data_type: LaserScan
-#   topic: /local_map_laserscan
-#   sensor_frame: local_map
-#   marking: true
-#   clearing: true
-#   max_obstacle_height: 1.45
-#   min_obstacle_height: 0.0
-#  vanjee_front_sensor:
-#   data_type: LaserScan
-#   topic: /front_filtered_points
-#   sensor_frame: vanjee_lidar_front
-#   marking: true
-#   clearing: true
-#   max_obstacle_height: 0.5
-#   min_obstacle_height: -0.5
-#  vanjee_back_sensor:
-#   data_type: LaserScan
-#   topic: /back_filtered_points
-#   sensor_frame: vanjee_lidar_back
-#   marking: true
-#   clearing: true
-#   max_obstacle_height: 0.5
-#   min_obstacle_height: -0.5
 
  laser_scan_sensor: 
   data_type: LaserScan
@@ -67,3 +40,17 @@ inflation_layer:
 static_layer:
   enabled:              true
   map_topic:            "map"
+
+global_frame: map
+robot_base_frame: local_map
+update_frequency: 10
+publish_frequency: 5.0
+static_map: false
+rolling_window: true
+width: 10.0
+height: 10.0
+resolution: 0.1
+
+plugins:
+  - {name: obstacle_layer,      type: "costmap_2d::ObstacleLayer"}
+  - {name: inflation_layer,         type: "costmap_2d::InflationLayer"}

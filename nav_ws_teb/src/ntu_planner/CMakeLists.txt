@@ -28,7 +28,6 @@ catkin_package(
 )
 
 catkin_install_python(PROGRAMS
-  src/pointcloud2_filter.py
   srcipts/reload_planning_controller.py
   srcipts/reload_planning_simulator.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

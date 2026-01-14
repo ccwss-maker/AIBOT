@@ -1,11 +1,6 @@
 <launch>
   <group ns="robot1">
       <node name="map_server" pkg="map_server" type="map_server" args="$(find dispatch_control)/Map/ntuitive_align/2m/map.yaml"/>
-      
-      <!-- <node pkg="tf" type="static_transform_publisher" name="static_tf_local_to_ntu"
-            args="0.5 0 0 0 0 0 local_map ntu_local_map 100" /> -->
-      
-      <!-- <node pkg="ntu_planner" type="pointcloud2_filter.py" name="pointcloud2_filter" output="screen"/> -->
 
       <node pkg="ntu_planner" type="reload_planning_controller.py" name="reload_planning_controller" output="screen"/>
 
@@ -13,16 +8,12 @@
         <rosparam file="$(find ntu_planner)/config/move_base_params.yaml" command="load" />
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_global.yaml" command="load" ns="global_costmap" />
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_local.yaml" command="load" ns="local_costmap" />
-        <rosparam file="$(find ntu_planner)/config/local_costmap_params.yaml" command="load" />
-        <rosparam file="$(find ntu_planner)/config/global_costmap_params.yaml" command="load" />
         <rosparam file="$(find ntu_planner)/config/dwa_local_planner_params.yaml" command="load" />
-        <!-- <rosparam file="$(find ntu_planner)/config/teb_local_planner_params.yaml" command="load" /> -->
         <param name="recovery_behavior_enabled" value="false"/>
         <remap from="cmd_vel" to="/base_cmd_vel"/>
       </node>
 
       <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">
-        <!-- <remap from="cloud_in" to="/local_map"/> -->
         <remap from="cloud_in" to="/merged_pointcloud_sliced"/>
         <remap from="scan" to="/local_map_laserscan"/>
         <rosparam>
