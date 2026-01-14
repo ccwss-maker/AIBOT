@@ -1,0 +1,7 @@
+<library path="lib/libntu_planner">
+  <class name="ntu_planner/NTUController" type="ntu_planner::NTUController" base_class_type="mbf_costmap_core::CostmapController">
+    <description>
+      NTU Controller - 使用 Pure Pursuit 算法跟踪全局路径的自定义局部控制器
+    </description>
+  </class>
+</library>

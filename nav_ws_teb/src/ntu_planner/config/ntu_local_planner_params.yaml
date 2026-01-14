@@ -1,0 +1,13 @@
+# NTU Controller 参数配置
+
+NTUController:
+  # 速度限制
+  max_vel_x: 0.5              # 最大线速度 (m/s)
+  max_vel_theta: 0.3          # 最大角速度 (rad/s)
+  
+  # 目标容差
+  xy_goal_tolerance: 0.2      # XY 位置容差 (m)
+  yaw_goal_tolerance: 0.2     # 航向角容差 (rad)
+  
+  # Pure Pursuit 参数
+  lookahead_distance: 0.5     # 前瞻距离 (m)，越大轨迹越平滑但反应越慢

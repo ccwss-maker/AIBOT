@@ -4,13 +4,27 @@
 
       <node pkg="ntu_planner" type="reload_planning_controller.py" name="reload_planning_controller" output="screen"/>
 
-      <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
-        <rosparam file="$(find ntu_planner)/config/move_base_params.yaml" command="load" />
+      <!-- MBF (Move Base Flex) Node -->
+      <node pkg="mbf_costmap_nav" type="mbf_costmap_nav" respawn="false" name="move_base_flex" output="screen">
+        <rosparam file="$(find ntu_planner)/config/mbf_params.yaml" command="load" />
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_global.yaml" command="load" ns="global_costmap" />
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_local.yaml" command="load" ns="local_costmap" />
-        <rosparam file="$(find ntu_planner)/config/dwa_local_planner_params.yaml" command="load" />
-        <param name="recovery_behavior_enabled" value="false"/>
-        <!-- <remap from="cmd_vel" to="/base_cmd_vel"/> -->
+        
+        <!-- 加载 NTU Controller 参数 -->
+        <rosparam file="$(find ntu_planner)/config/ntu_local_planner_params.yaml" command="load" />
+        
+        <!-- 也可以保留 DWA 配置作为参考 -->
+        <!-- <rosparam file="$(find ntu_planner)/config/dwa_local_planner_params.yaml" command="load" /> -->
+        
+        <param name="recovery_enabled" value="false"/>
+        <remap from="cmd_vel" to="/base_cmd_vel"/>
+      </node>
+
+      <!-- MBF Legacy Relay: 使 MBF 兼容 move_base 的 simple goal 话题 -->
+      <node pkg="mbf_costmap_nav" type="move_base_legacy_relay.py" name="move_base_legacy_relay" output="screen">
+        <!-- 设置默认的全局规划器和局部控制器 -->
+        <param name="base_global_planner" value="navfn/NavfnROS"/>
+        <param name="base_local_planner" value="ntu_planner/NTUController"/>
       </node>
 
       <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">
