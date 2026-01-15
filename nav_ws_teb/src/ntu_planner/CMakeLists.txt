@@ -36,6 +36,7 @@ find_package(catkin REQUIRED COMPONENTS
   pluginlib
   visualization_msgs
   dynamic_reconfigure
+  base_local_planner
 )
 
 ## 查找其他依赖
@@ -73,6 +74,7 @@ catkin_package(
     tf2_ros
     visualization_msgs
     dynamic_reconfigure
+    base_local_planner
 )
 
 ###########

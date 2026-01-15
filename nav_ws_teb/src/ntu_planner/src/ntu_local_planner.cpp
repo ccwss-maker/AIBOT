@@ -3,6 +3,7 @@
 #include <tf2/utils.h>
 #include <visualization_msgs/Marker.h>
 #include <mbf_msgs/ExePathResult.h>
+#include <base_local_planner/goal_functions.h>
 
 // 注册插件到 pluginlib
 PLUGINLIB_EXPORT_CLASS(ntu_planner::NTUController, mbf_costmap_core::CostmapController)
@@ -146,9 +147,39 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
 
   ROS_INFO("NTUController received new path with %lu points", plan.size());
 
-  // 始终进行 MINCO 轨迹优化
-  ROS_INFO("Starting trajectory optimization...");
-  optimization_success_ = trajectory_optimizer_.optimizePath(plan, optimized_points_, optimized_times_);
+  // === 提取局部代价地图范围内的全局路径部分 ===
+  std::vector<geometry_msgs::PoseStamped> local_plan;
+  geometry_msgs::PoseStamped robot_pose;
+
+  if (!costmap_ros_->getRobotPose(robot_pose))
+  {
+    ROS_WARN("Cannot get robot pose for transformGlobalPlan, using full global plan");
+    local_plan = plan;
+  }
+  else
+  {
+    // 使用 transformGlobalPlan 获取局部范围内的路径
+    if (!base_local_planner::transformGlobalPlan(
+        *tf_,
+        global_plan_,
+        robot_pose,
+        *costmap_,
+        costmap_ros_->getGlobalFrameID(),
+        local_plan))
+    {
+      ROS_WARN("Could not transform global plan to local costmap frame, using full global plan");
+      local_plan = plan;
+    }
+    else
+    {
+      ROS_INFO("Transformed plan: %lu points in local costmap (original: %lu)",
+               local_plan.size(), plan.size());
+    }
+  }
+
+  // 始终进行 MINCO 轨迹优化 - 使用局部路径而不是全局路径
+  ROS_INFO("Starting trajectory optimization with local plan (%lu points)...", local_plan.size());
+  optimization_success_ = trajectory_optimizer_.optimizePath(local_plan, optimized_points_, optimized_times_);
 
   if (optimization_success_)
   {
