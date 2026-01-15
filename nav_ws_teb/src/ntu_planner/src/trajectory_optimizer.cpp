@@ -29,9 +29,7 @@ void TrajectoryOptimizer::initialize(ros::NodeHandle &nh)
     nh.param("trajectory_optimizer/epsilon", epsilon_, 1e-5);
     nh.param("trajectory_optimizer/viz_only_control_points", viz_only_control_points_, false);
     nh.param("trajectory_optimizer/viz_time_step", viz_time_step_, 0.05);
-
-    ROS_INFO("=== DEBUG: Final values ===");
-
+    
     ROS_INFO("TrajectoryOptimizer initialized with parameters:");
     ROS_INFO("  weight_time: %.3f", weight_time_);
     ROS_INFO("  weight_position_x: %.3f, weight_position_y: %.3f", weight_position_x_, weight_position_y_);
@@ -47,7 +45,9 @@ void TrajectoryOptimizer::initialize(ros::NodeHandle &nh)
 
 bool TrajectoryOptimizer::optimizePath(const std::vector<geometry_msgs::PoseStamped> &global_plan,
                                         Eigen::Matrix3Xd &optimized_points,
-                                        Eigen::VectorXd &optimized_times)
+                                        Eigen::VectorXd &optimized_times,
+                                        Eigen::Matrix3d &init_state,
+                                        Eigen::Matrix3d &final_state)
 {
     if (!initialized_)
     {
@@ -76,16 +76,16 @@ bool TrajectoryOptimizer::optimizePath(const std::vector<geometry_msgs::PoseStam
     spatial_dim_ = 3 * (piece_num_ - 1);
 
     // 起点和终点
-    Eigen::Vector3d start_point(global_plan.front().pose.position.x,
-                                 global_plan.front().pose.position.y,
-                                 0.0);
-    Eigen::Vector3d end_point(global_plan.back().pose.position.x,
-                               global_plan.back().pose.position.y,
-                               0.0);
+    Eigen::Vector3d start_point(sampled_path_.front()[0],
+                                sampled_path_.front()[1],
+                                sampled_path_.front()[2]);
+    Eigen::Vector3d end_point(sampled_path_.back()[0],
+                              sampled_path_.back()[1],
+                              sampled_path_.back()[2]);
 
     // 设置边界条件
-    Eigen::Matrix3d init_state = Eigen::Matrix3d::Zero();
-    Eigen::Matrix3d final_state = Eigen::Matrix3d::Zero();
+    init_state = Eigen::Matrix3d::Zero();
+    final_state = Eigen::Matrix3d::Zero();
     init_state.col(0) = start_point;
     final_state.col(0) = end_point;
     minco_.setConditions(init_state, final_state, piece_num_);
@@ -143,14 +143,14 @@ bool TrajectoryOptimizer::optimizePath(const std::vector<geometry_msgs::PoseStam
 
     if (!optimization_success)
     {
-        ROS_WARN("Optimization quality poor (position_cost=%.3f), using fallback trajectory", position_cost);
+        ROS_ERROR("Optimization quality poor (position_cost=%.3f), using fallback trajectory", position_cost);
 
-        // 创建 fallback 轨迹（原始路径的 MINCO 格式）
-        if (!createFallbackTrajectory(global_plan, optimized_points, optimized_times))
-        {
-            ROS_ERROR("Fallback trajectory creation failed!");
-            return false;
-        }
+        // // 创建 fallback 轨迹（原始路径的 MINCO 格式）
+        // if (!createFallbackTrajectory(global_plan, optimized_points, optimized_times))
+        // {
+        //     ROS_ERROR("Fallback trajectory creation failed!");
+        //     return false;
+        // }
     }
     else
     {
@@ -172,14 +172,18 @@ void TrajectoryOptimizer::samplePath(const std::vector<geometry_msgs::PoseStampe
 
     // 跳过起点和终点，按间隔采样中间点
     for (size_t i = 1; i < global_plan.size() - 1; i += (astar_point_interval_ + 1))
-    {
+    {   
+        double yaw = tf2::getYaw(global_plan[i].pose.orientation);
+        ROS_INFO("Sampling global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
+                 i, global_plan[i].pose.position.x, global_plan[i].pose.position.y, yaw, yaw * 180.0 / M_PI);
         Eigen::Vector3d point(global_plan[i].pose.position.x,
                               global_plan[i].pose.position.y,
-                              0.0);
+                              yaw);
         sampled_path_.push_back(point);
     }
 
-    ROS_INFO("Sampled %zu points from global plan (size=%zu)", sampled_path_.size(), global_plan.size());
+    ROS_INFO("Sampled %zu points from global plan (size=%zu)", 
+             sampled_path_.size(), global_plan.size());
 }
 
 double TrajectoryOptimizer::computeCostAndGradient(const Eigen::VectorXd &params, Eigen::VectorXd &grad)
@@ -518,12 +522,12 @@ bool TrajectoryOptimizer::createFallbackTrajectory(const std::vector<geometry_ms
     fallback_times(n_points) = init_time_;
 
     // 设置 MINCO 边界条件
-    Eigen::Vector3d start_point(global_plan.front().pose.position.x,
-                                  global_plan.front().pose.position.y,
-                                  0.0);
-    Eigen::Vector3d end_point(global_plan.back().pose.position.x,
-                               global_plan.back().pose.position.y,
-                               0.0);
+    Eigen::Vector3d start_point(sampled_path_.front()[0],
+                                  sampled_path_.front()[1],
+                                  sampled_path_.front()[2]);
+    Eigen::Vector3d end_point(sampled_path_.back()[0],
+                               sampled_path_.back()[1],
+                               sampled_path_.back()[2]);
 
     Eigen::Matrix3d init_state = Eigen::Matrix3d::Zero();
     Eigen::Matrix3d final_state = Eigen::Matrix3d::Zero();

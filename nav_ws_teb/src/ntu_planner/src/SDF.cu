@@ -2,7 +2,6 @@
 #include <chrono>
 
 double Car_Length;
-double Car_Length_0;
 double Car_Width;
 double x_min;
 double x_max;
@@ -28,7 +27,6 @@ __constant__ double c_Car_Width;
 __constant__ double c_total_duration;
 __constant__ double c_safety_hor;
 __constant__ double c_weight_safety;
-__constant__ double c_weight_swept_volume;
 __constant__ int c_num_grid_x;
 __constant__ int c_num_grid_y;
 __constant__ int c_num_points_x;
@@ -475,12 +473,12 @@ __global__ void Calculate_Grad_Yaw(GPU_Initial_Optimized_Trajectory_ Gpu_Traj, d
     double Yaw_Route;
     Yaw_Route = atan2(V[1], V[0]);
     double Yaw_delta = yaw - Yaw_Route;
-    double cost = c_weight_swept_volume * Yaw_delta * Yaw_delta;
+    double cost = Yaw_delta * Yaw_delta;
     double V_inv = 1.0 / fmax(V[0] * V[0] + V[1] * V[1], 1e-10);
 
-    double gradient_Yaw = c_weight_swept_volume * 2 * Yaw_delta;
-    double gradient_X = c_weight_swept_volume * 2 * Yaw_delta * (-V[1] * V_inv);
-    double gradient_Y = c_weight_swept_volume * 2 * Yaw_delta * (V[0] * V_inv);
+    double gradient_Yaw = 2 * Yaw_delta;
+    double gradient_X = 2 * Yaw_delta * (-V[1] * V_inv);
+    double gradient_Y = 2 * Yaw_delta * (V[0] * V_inv);
     double gradient_T = gradient_Yaw * w + gradient_X * V[0] + gradient_Y * V[1];
     atomicAdd(&GPUGradByPoints_Yaw[0 * pieceN + piece_ID], gradient_X);
     atomicAdd(&GPUGradByPoints_Yaw[1 * pieceN + piece_ID], gradient_Y);
@@ -489,37 +487,58 @@ __global__ void Calculate_Grad_Yaw(GPU_Initial_Optimized_Trajectory_ Gpu_Traj, d
     atomicAdd(GPUCost, cost);
 }
 
-void GPUProcessConfig(YAML::Node config)
+void GPUProcessConfig(const SDFConfig& config)
 {
-    // 定义车身几何参数
-    Car_Length = config["Car_Length"].as<double>();
-    Car_Length_0 = 0.15;;
-    Car_Width = config["Car_Width"].as<double>();
+    // 从footprint数组提取车辆尺寸（假设footprint是矩形的4个顶点）
+    // if (config.footprint.size() == 4)
+    // {
+    //     // 计算车辆的长度和宽度
+    //     // footprint格式: [[front_right], [front_left], [rear_left], [rear_right]]
+    //     double x_max_fp = config.footprint[0].first;
+    //     double x_min_fp = config.footprint[2].first;
+    //     double y_max_fp = config.footprint[0].second;
+    //     double y_min_fp = config.footprint[1].second;
+        
+    //     for (const auto& p : config.footprint)
+    //     {
+    //         x_max_fp = std::max(x_max_fp, p.first);
+    //         x_min_fp = std::min(x_min_fp, p.first);
+    //         y_max_fp = std::max(y_max_fp, p.second);
+    //         y_min_fp = std::min(y_min_fp, p.second);
+    //     }
+        
+    //     Car_Length = x_max_fp - x_min_fp;
+    //     Car_Width = y_max_fp - y_min_fp;
+    // }
+    // else
+    {
+        // 使用默认值
+        Car_Length = 0.1;
+        Car_Width = 0.7;
+    }
 
-    // 定义遍历的区域和分辨率（以米为单位）
-    x_min = config["x_min"].as<double>();
-    x_max = config["x_max"].as<double>();
-    y_min = config["y_min"].as<double>();
-    y_max = config["y_max"].as<double>();
-    resolution = config["SDF_resolution"].as<double>();
-    
+    // 定义遍历区域
+    x_min = config.x_min;
+    x_max = config.x_max;
+    y_min = config.y_min;
+    y_max = config.y_max;
+    resolution = config.sdf_resolution;
+
     // 定义粗网格数据
-    grid_size = config["coarse_grid_size"].as<double>();
-    double time_step = config["find_t_star_time_step"].as<double>();
-    
+    grid_size = config.coarse_grid_size;
+    double time_step = config.find_t_star_time_step;
+
     // 定义梯度下降搜索参数
-    double eta = config["eta"].as<double>();
-    double c = config["c"].as<double>();
-    double tol = config["tol"].as<double>();
-    double max_iter = config["max_iter"].as<double>();
+    double eta = config.eta;
+    double c = config.c;
+    double tol = config.tol;
+    double max_iter = config.max_iter;
 
     //定义SDF安全阈值
-    double safety_hor = config["SDF_safety_hor"].as<double>();
-    double weight_safety = config["SDF_opimiz_weight_safety"].as<double>();
+    double safety_hor = config.sdf_safety_hor;
+    double weight_safety = config.weight_safety;
 
-    //定义SV优化系数
-    double weight_swept_volume = config["SDF_opimiz_weight_swept_volume"].as<double>();
-    
+    // 复制到GPU常量内存
     cudaMemcpyToSymbol(c_safety_hor, &safety_hor, sizeof(double));
     cudaMemcpyToSymbol(c_weight_safety, &weight_safety, sizeof(double));
     cudaMemcpyToSymbol(c_resolution, &resolution, sizeof(double));
@@ -531,21 +550,14 @@ void GPUProcessConfig(YAML::Node config)
     cudaMemcpyToSymbol(c_max_iter, &max_iter, sizeof(double));
     cudaMemcpyToSymbol(c_Car_Length, &Car_Length, sizeof(double));
     cudaMemcpyToSymbol(c_Car_Width, &Car_Width, sizeof(double));
-    cudaMemcpyToSymbol(c_weight_swept_volume, &weight_swept_volume, sizeof(double));
 }
 
-void GPUProcessSDF(Optimized_Trajectory_ traj, std::vector<SDF_Map_>& SDF_Map, double& area, bool test) {
-
-    if(test) 
-    {
-        Car_Length = Car_Length_0;
-        cudaMemcpyToSymbol(c_Car_Length, &Car_Length_0, sizeof(double));
-    }
+void GPUProcessSDF(Optimized_Trajectory_ traj, std::vector<SDF_Map_>& SDF_Map, double& area) {
     // 计算遍历区域最小范围（以米为单位）
-    x_min = fmax(x_min, traj.points.row(0).minCoeff() - fmax(Car_Length, Car_Width));
-    x_max = fmin(x_max, traj.points.row(0).maxCoeff() + fmax(Car_Length, Car_Width));
-    y_min = fmax(y_min, traj.points.row(1).minCoeff() - fmax(Car_Length, Car_Width)); 
-    y_max = fmin(y_max, traj.points.row(1).maxCoeff() + fmax(Car_Length, Car_Width));
+    // x_min = fmax(x_min, traj.points.row(0).minCoeff() - fmax(Car_Length, Car_Width));
+    // x_max = fmin(x_max, traj.points.row(0).maxCoeff() + fmax(Car_Length, Car_Width));
+    // y_min = fmax(y_min, traj.points.row(1).minCoeff() - fmax(Car_Length, Car_Width)); 
+    // y_max = fmin(y_max, traj.points.row(1).maxCoeff() + fmax(Car_Length, Car_Width));
 
     // 计算总时间
     double total_duration = traj.times.sum();
@@ -665,7 +677,7 @@ void GPUProcessGradSDF(Optimized_Trajectory_ traj, Eigen::Matrix3Xd Obstacle_Poi
     cudaFree(GPUCost);
 }
 
-void GPUProcessGradYaw(Optimized_Trajectory_ traj, Eigen::MatrixX3d & GradByPoints_Yaw, Eigen::VectorXd & GradByTimes_Yaw, double & cost)
+void GPUProcessGradYaw(Optimized_Trajectory_ traj, double sdf_opimiz_weight_yaw_, Eigen::MatrixX3d & GradByPoints_Yaw, Eigen::VectorXd & GradByTimes_Yaw, double & cost)
 {
     // 获取轨迹信息
     int b_size = traj.pieceN * 6 * 3 * sizeof(double);
@@ -682,7 +694,7 @@ void GPUProcessGradYaw(Optimized_Trajectory_ traj, Eigen::MatrixX3d & GradByPoin
 
     int blockSize, numBlocks;
     
-    // 计算所有障碍物的梯度
+    // 计算梯度
     double *GPUGradByPoints_Yaw, *GPUGradByTimes_Yaw, *GPUCost;
     cudaMalloc(&GPUGradByPoints_Yaw, traj.pieceN * 3 * sizeof(double));
     cudaMalloc(&GPUGradByTimes_Yaw, traj.pieceN * sizeof(double));
@@ -700,7 +712,11 @@ void GPUProcessGradYaw(Optimized_Trajectory_ traj, Eigen::MatrixX3d & GradByPoin
     cudaMemcpy(GradByPoints_Yaw.data(), GPUGradByPoints_Yaw, traj.pieceN * 3 * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(GradByTimes_Yaw.data(), GPUGradByTimes_Yaw, traj.pieceN * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(&CPU_Cost, GPUCost, 1 * sizeof(double), cudaMemcpyDeviceToHost);
-    cost = CPU_Cost;
+    
+    // 统一乘以权重
+    GradByPoints_Yaw *= sdf_opimiz_weight_yaw_;
+    GradByTimes_Yaw *= sdf_opimiz_weight_yaw_;
+    cost = CPU_Cost * sdf_opimiz_weight_yaw_;
 
     // 释放CUDA内存
     cudaFree(Gpu_Traj.b);

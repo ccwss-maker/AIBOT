@@ -8,6 +8,8 @@
 #include <vector>
 #include <LBFGS.h>
 #include "utils/minco.hpp"
+#include <tf2_ros/buffer.h>
+#include <tf2/utils.h>
 
 namespace ntu_planner
 {
@@ -39,7 +41,9 @@ public:
      */
     bool optimizePath(const std::vector<geometry_msgs::PoseStamped> &global_plan,
                       Eigen::Matrix3Xd &optimized_points,
-                      Eigen::VectorXd &optimized_times);
+                      Eigen::VectorXd &optimized_times,
+                      Eigen::Matrix3d &init_state,
+                      Eigen::Matrix3d &final_state);
 
     /**
      * @brief 获取 MINCO 系数（用于轨迹生成和可视化）

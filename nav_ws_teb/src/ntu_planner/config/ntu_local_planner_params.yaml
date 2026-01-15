@@ -1,5 +1,9 @@
 # NTU Controller 参数配置
 NTUController:
+  # 坐标系参数
+  robot_base_frame: "local_map"  # 机器人坐标系名称
+  global_frame: "map"            # 全局坐标系名称
+
   # 速度限制
   max_vel_x: 0.5              # 最大线速度 (m/s)
   max_vel_theta: 0.3          # 最大角速度 (rad/s)
@@ -14,17 +18,17 @@ NTUController:
   # ========== 轨迹优化器参数（始终启用）==========
   trajectory_optimizer:
     # 权重参数
-    weight_time: 0.1          # 时间代价权重（越小越希望时间短）
+    weight_time: 1.0          # 时间代价权重（越小越希望时间短）
     weight_energy_x: 1.0      # X 方向平滑度权重
     weight_energy_y: 1.0      # Y 方向平滑度权重
-    weight_energy_w: 0.1      # 航向角平滑度权重
-    weight_position_x: 1.0  # X 方向位置误差权重（越大越贴近路径）
-    weight_position_y: 1.0  # Y 方向位置误差权重
-    weight_position_w: 1.0    # 航向角位置误差权重
+    weight_energy_w: 1.0      # 航向角平滑度权重
+    weight_position_x: 1.0    # X 方向位置误差权重（越大越贴近路径）
+    weight_position_y: 1.0    # Y 方向位置误差权重
+    weight_position_w: 0.1    # 航向角位置误差权重
 
     # 采样和时间参数
-    init_time: 0.5            # 初始每段时间间隔 (秒)
-    astar_point_interval: 2   # 路径点采样间隔（每隔几个点取一个）
+    init_time: 1.0            # 初始每段时间间隔 (秒)
+    astar_point_interval: 5   # 路径点采样间隔（每隔几个点取一个）
 
     # 优化算法参数
     max_iterations: 1000      # LBFGS 最大迭代次数
@@ -45,10 +49,7 @@ NTUController:
     tol: 1.0e-6                           # 容差
     max_iter: 1000                        # 最大迭代次数
 
-    # Compute SDF 参数
-    sdf_test: false                       # SDF测试模式
-    sdf_resolution: 0.8                   # SDF分辨率
-    sdf_safety_hor: 1.0                   # 安全距离
+    sdf_safety_hor: 0.1                   # 安全距离
 
     # Optimization 参数
     sdf_opimiz_times_max: 10000           # 最大优化步数
@@ -56,5 +57,19 @@ NTUController:
     sdf_opimiz_weight_energy_x: 1.0       # X方向能量权重
     sdf_opimiz_weight_energy_y: 1.0       # Y方向能量权重
     sdf_opimiz_weight_energy_w: 1.0       # 航向角能量权重
-    sdf_opimiz_weight_swept_volume: 0.1   # 扫掠体积权重
-    sdf_opimiz_weight_safety: 1.0         # 安全性权重
+    sdf_opimiz_weight_yaw: 0.1            # 航向角权重
+    sdf_opimiz_weight_safety: 0.0         # 安全性权重
+
+    # 局部costmap参数（用于SDF优化区域计算）
+    width: 10.0                           # 局部costmap宽度（米）
+    height: 10.0                          # 局部costmap高度（米）
+
+    # 车辆footprint（机器人轮廓，矩形四个角点，相对于机器人中心）
+    footprint: [[0.45, 0.30], [0.45, -0.30], [-0.45, -0.30], [-0.45, 0.30]]
+
+    # 轨迹可视化参数
+    viz_only_control_points: true  # true: 仅显示控制点, false: 显示采样轨迹
+    viz_time_step: 0.2       # 轨迹采样时间步长（秒），仅在 viz_only_control_points=false 时生效
+    
+    # SDF可视化参数
+    sdf_resolution: 0.05                   # SDF分辨率

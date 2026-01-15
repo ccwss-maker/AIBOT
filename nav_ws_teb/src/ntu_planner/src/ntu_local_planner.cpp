@@ -51,7 +51,7 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
   trajectory_optimizer_.initialize(private_nh);
 
   // 初始化SDF优化器
-  sdf_optimizer_.initialize(private_nh);
+  sdf_optimizer_.initialize(private_nh, robot_base_frame_, global_frame_);
 
   // 创建发布器（用于可视化）
   global_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
@@ -67,9 +67,6 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
   controller_config.xy_goal_tolerance = xy_goal_tolerance_;
   controller_config.yaw_goal_tolerance = yaw_goal_tolerance_;
   controller_config.lookahead_distance = lookahead_distance_;
-
-  // 更新初始配置（不触发回调）
-  dsrv_controller_->updateConfig(controller_config);
 
   // 设置回调函数
   dynamic_reconfigure::Server<ntu_planner::NTUControllerConfig>::CallbackType cb_controller;
@@ -97,9 +94,6 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
   private_nh.param("trajectory_optimizer/viz_only_control_points", optimizer_config.viz_only_control_points, true);
   private_nh.param("trajectory_optimizer/viz_time_step", optimizer_config.viz_time_step, 0.2);
 
-  // 更新初始配置（不触发回调）
-  dsrv_optimizer_->updateConfig(optimizer_config);
-
   // 设置回调函数
   dynamic_reconfigure::Server<ntu_planner::TrajectoryOptimizerConfig>::CallbackType cb_optimizer;
   cb_optimizer = boost::bind(&NTUController::optimizerReconfigureCallback, this, _1, _2);
@@ -117,7 +111,6 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
   private_nh.param("sdf_optimization/c", sdf_optimizer_config.c, 0.1);
   private_nh.param("sdf_optimization/tol", sdf_optimizer_config.tol, 1e-6);
   private_nh.param("sdf_optimization/max_iter", sdf_optimizer_config.max_iter, 1000);
-  private_nh.param("sdf_optimization/sdf_test", sdf_optimizer_config.sdf_test, false);
   private_nh.param("sdf_optimization/sdf_resolution", sdf_optimizer_config.sdf_resolution, 0.8);
   private_nh.param("sdf_optimization/sdf_safety_hor", sdf_optimizer_config.sdf_safety_hor, 1.0);
   private_nh.param("sdf_optimization/sdf_opimiz_times_max", sdf_optimizer_config.sdf_opimiz_times_max, 10000);
@@ -125,13 +118,16 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
   private_nh.param("sdf_optimization/sdf_opimiz_weight_energy_x", sdf_optimizer_config.sdf_opimiz_weight_energy_x, 1.0);
   private_nh.param("sdf_optimization/sdf_opimiz_weight_energy_y", sdf_optimizer_config.sdf_opimiz_weight_energy_y, 1.0);
   private_nh.param("sdf_optimization/sdf_opimiz_weight_energy_w", sdf_optimizer_config.sdf_opimiz_weight_energy_w, 1.0);
-  private_nh.param("sdf_optimization/sdf_opimiz_weight_swept_volume", sdf_optimizer_config.sdf_opimiz_weight_swept_volume, 0.1);
+  private_nh.param("sdf_optimization/sdf_opimiz_weight_yaw", sdf_optimizer_config.sdf_opimiz_weight_yaw, 0.1);
   private_nh.param("sdf_optimization/sdf_opimiz_weight_safety", sdf_optimizer_config.sdf_opimiz_weight_safety, 1.0);
+  private_nh.param("sdf_optimization/width", sdf_optimizer_config.width, 10.0);
+  private_nh.param("sdf_optimization/height", sdf_optimizer_config.height, 10.0);
+  
+  std::string footprint_str;
+  private_nh.param("sdf_optimization/footprint", footprint_str, std::string("[[0.45, 0.35], [0.45, -0.35], [-0.45, -0.35], [-0.45, 0.35]]"));
+  sdf_optimizer_config.footprint = footprint_str;
 
-  // 更新初始配置（不触发回调）
-  dsrv_sdf_optimizer_->updateConfig(sdf_optimizer_config);
-
-  // 设置回调函数
+  // 设置回调函数（setCallback会自动触发一次回调）
   dynamic_reconfigure::Server<ntu_planner::SDFOptimizerConfig>::CallbackType cb_sdf_optimizer;
   cb_sdf_optimizer = boost::bind(&NTUController::sdfOptimizerReconfigureCallback, this, _1, _2);
   dsrv_sdf_optimizer_->setCallback(cb_sdf_optimizer);
@@ -145,6 +141,10 @@ void NTUController::loadParameters()
   // 使用已经创建的 NodeHandle
   ROS_INFO("Loading parameters from namespace: %s", nh_.getNamespace().c_str());
 
+  // 读取坐标系参数
+  nh_.param("robot_base_frame", robot_base_frame_, std::string("base_link"));
+  nh_.param("global_frame", global_frame_, std::string("map"));
+
   // 读取参数，如果没有设置则使用默认值
   nh_.param("max_vel_x", max_vel_x_, 1.0);
   nh_.param("max_vel_theta", max_vel_theta_, 1.0);
@@ -153,6 +153,8 @@ void NTUController::loadParameters()
   nh_.param("lookahead_distance", lookahead_distance_, 1.0);
 
   ROS_INFO("NTUController parameters:");
+  ROS_INFO("  robot_base_frame: %s", robot_base_frame_.c_str());
+  ROS_INFO("  global_frame: %s", global_frame_.c_str());
   ROS_INFO("  max_vel_x: %.2f m/s", max_vel_x_);
   ROS_INFO("  max_vel_theta: %.2f rad/s", max_vel_theta_);
   ROS_INFO("  xy_goal_tolerance: %.2f m", xy_goal_tolerance_);
@@ -179,6 +181,25 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
   global_plan_ = plan;
   current_waypoint_idx_ = 0;
   goal_reached_ = false;
+
+  // 计算航向角
+  for (size_t i = 0; i < global_plan_.size() - 1; i++)
+  {
+    double dx = global_plan_[i + 1].pose.position.x - global_plan_[i].pose.position.x;
+    double dy = global_plan_[i + 1].pose.position.y - global_plan_[i].pose.position.y;
+    double yaw = std::atan2(dy, dx);
+    tf2::Quaternion q;
+    q.setRPY(0, 0, yaw);
+    global_plan_[i].pose.orientation = tf2::toMsg(q);
+  }
+  
+  //DEBUG 打印航向角
+  for (size_t i = 0; i < global_plan_.size(); i++)
+  {
+    double yaw = tf2::getYaw(global_plan_[i].pose.orientation);
+    ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
+             i, global_plan_[i].pose.position.x, global_plan_[i].pose.position.y, yaw, yaw * 180.0 / M_PI);
+  }
 
   ROS_INFO("NTUController received new path with %lu points", plan.size());
 
@@ -212,14 +233,20 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
     }
   }
 
-  // 始终进行 MINCO 轨迹优化 - 使用局部路径而不是全局路径
+  // 进行 MINCO 轨迹优化 - 使用局部路径而不是全局路径
   ROS_INFO("Starting trajectory optimization with local plan (%lu points)...", local_plan.size());
-  optimization_success_ = trajectory_optimizer_.optimizePath(local_plan, optimized_points_, optimized_times_);
+  optimization_success_ = trajectory_optimizer_.optimizePath(local_plan, optimized_points_, optimized_times_, init_state_, final_state_);
 
   if (optimization_success_)
   {
     ROS_INFO("Trajectory optimization successful! Generated %ld optimized points", optimized_points_.cols());
-
+    //DEBUG 打印航向角
+    for (size_t i = 0; i < optimized_points_.cols(); i++)
+    {
+      double yaw = optimized_points_(2, i);
+      ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
+               i, optimized_points_(0, i), optimized_points_(1, i), yaw, yaw * 180.0 / M_PI);
+    }
     // 进行SDF优化（使用第一次优化的结果）
     ROS_INFO("Starting SDF optimization...");
 
@@ -233,7 +260,10 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
         optimized_times_,
         obstacle_points,
         sdf_optimized_points_,
-        sdf_optimized_times_);
+        sdf_optimized_times_,
+        init_state_,
+        final_state_,
+        costmap_ros_->getGlobalFrameID());
 
     if (sdf_optimization_success_)
     {
@@ -513,23 +543,21 @@ void NTUController::publishVisualization()
 
 void NTUController::controllerReconfigureCallback(ntu_planner::NTUControllerConfig &config, uint32_t level)
 {
-  ROS_INFO("NTUController dynamic reconfigure callback triggered");
+  // // 跳过初始化时setCallback()自动触发的回调
+  // if (!initialized_)
+  // {
+  //   return;
+  // }
 
-  // 更新 NTUController 自己的参数
+  ROS_INFO("NTUController parameters changed via dynamic_reconfigure");
+
+  // 更新参数
   max_vel_x_ = config.max_vel_x;
   max_vel_theta_ = config.max_vel_theta;
   xy_goal_tolerance_ = config.xy_goal_tolerance;
   yaw_goal_tolerance_ = config.yaw_goal_tolerance;
   lookahead_distance_ = config.lookahead_distance;
 
-  // 同时更新到 parameter server
-  nh_.setParam("max_vel_x", max_vel_x_);
-  nh_.setParam("max_vel_theta", max_vel_theta_);
-  nh_.setParam("xy_goal_tolerance", xy_goal_tolerance_);
-  nh_.setParam("yaw_goal_tolerance", yaw_goal_tolerance_);
-  nh_.setParam("lookahead_distance", lookahead_distance_);
-
-  ROS_INFO("NTUController parameters updated:");
   ROS_INFO("  max_vel_x: %.2f, max_vel_theta: %.2f", max_vel_x_, max_vel_theta_);
   ROS_INFO("  xy_goal_tolerance: %.2f, yaw_goal_tolerance: %.2f", xy_goal_tolerance_, yaw_goal_tolerance_);
   ROS_INFO("  lookahead_distance: %.2f", lookahead_distance_);
@@ -537,7 +565,13 @@ void NTUController::controllerReconfigureCallback(ntu_planner::NTUControllerConf
 
 void NTUController::optimizerReconfigureCallback(ntu_planner::TrajectoryOptimizerConfig &config, uint32_t level)
 {
-  ROS_INFO("TrajectoryOptimizer dynamic reconfigure callback triggered");
+  // // 跳过初始化时setCallback()自动触发的回调
+  // if (!initialized_)
+  // {
+  //   return;
+  // }
+
+  ROS_INFO("TrajectoryOptimizer parameters changed via dynamic_reconfigure");
 
   // 更新轨迹优化器的参数
   trajectory_optimizer_.updateParameters(
@@ -546,24 +580,28 @@ void NTUController::optimizerReconfigureCallback(ntu_planner::TrajectoryOptimize
       config.init_time, config.astar_point_interval, config.max_iterations,
       config.min_step, config.epsilon,
       config.viz_only_control_points, config.viz_time_step);
-
-  ROS_INFO("TrajectoryOptimizer parameters updated via dynamic_reconfigure");
 }
 
 void NTUController::sdfOptimizerReconfigureCallback(ntu_planner::SDFOptimizerConfig &config, uint32_t level)
 {
-  ROS_INFO("SDFOptimizer dynamic reconfigure callback triggered");
+  // // 跳过初始化时setCallback()自动触发的回调
+  // if (!initialized_)
+  // {
+  //   return;
+  // }
+
+  ROS_INFO("SDFOptimizer parameters changed via dynamic_reconfigure");
 
   // 更新SDF优化器的参数
   sdf_optimizer_.updateParameters(
       config.coarse_grid_size, config.find_t_star_time_step, config.eta, config.c,
-      config.tol, config.max_iter, config.sdf_test, config.sdf_resolution,
+      config.tol, config.max_iter, config.sdf_resolution,
       config.sdf_safety_hor, config.sdf_opimiz_times_max, config.sdf_opimiz_weight_time,
       config.sdf_opimiz_weight_energy_x, config.sdf_opimiz_weight_energy_y,
-      config.sdf_opimiz_weight_energy_w, config.sdf_opimiz_weight_swept_volume,
-      config.sdf_opimiz_weight_safety);
-
-  ROS_INFO("SDFOptimizer parameters updated via dynamic_reconfigure");
+      config.sdf_opimiz_weight_energy_w, config.sdf_opimiz_weight_yaw,
+      config.sdf_opimiz_weight_safety, config.width, config.height,
+      config.footprint,
+      config.viz_only_control_points, config.viz_time_step);
 }
 
 } // namespace ntu_planner

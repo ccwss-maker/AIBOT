@@ -113,7 +113,11 @@ private:
   
   // 全局路径
   std::vector<geometry_msgs::PoseStamped> global_plan_;
-
+  
+  // 始末状态
+  Eigen::Matrix3d init_state_;
+  Eigen::Matrix3d final_state_;
+  
   // 优化后的轨迹
   Eigen::Matrix3Xd optimized_points_;      // 第一次优化后的参考点 (3 x N)
   Eigen::VectorXd optimized_times_;        // 第一次优化后的时间参数
@@ -131,11 +135,13 @@ private:
   size_t current_waypoint_idx_;
   
   // 参数
-  double max_vel_x_;           // 最大线速度
-  double max_vel_theta_;       // 最大角速度
-  double xy_goal_tolerance_;   // 位置容差
-  double yaw_goal_tolerance_;  // 角度容差
-  double lookahead_distance_;  // 前瞻距离
+  std::string robot_base_frame_;  // 机器人坐标系名称
+  std::string global_frame_;      // 全局坐标系名称
+  double max_vel_x_;              // 最大线速度
+  double max_vel_theta_;          // 最大角速度
+  double xy_goal_tolerance_;      // 位置容差
+  double yaw_goal_tolerance_;     // 角度容差
+  double lookahead_distance_;     // 前瞻距离
   
   // 状态
   bool initialized_;

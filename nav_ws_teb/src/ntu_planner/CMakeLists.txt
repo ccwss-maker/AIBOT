@@ -4,8 +4,8 @@ project(ntu_planner)
 ## 设置 C++ 标准和编译选项
 add_compile_options(-std=c++14)
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic -O3)
-  # add_compile_options(-Wall -Wextra -Wpedantic -O3 -march=native)
+  # add_compile_options(-Wall -Wextra -Wpedantic -O3)
+  add_compile_options(-Wall -Wextra -Wpedantic -O3 -march=native)
 endif()
 
 ## 启用 Fortran 支持
