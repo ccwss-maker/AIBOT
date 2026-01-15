@@ -16,6 +16,7 @@ NTUController::NTUController()
       goal_reached_(false),
       current_waypoint_idx_(0),
       optimization_success_(false),
+      sdf_optimization_success_(false),
       tf_(nullptr),
       costmap_ros_(nullptr),
       costmap_(nullptr)
@@ -48,6 +49,9 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
 
   // 初始化轨迹优化器
   trajectory_optimizer_.initialize(private_nh);
+
+  // 初始化SDF优化器
+  sdf_optimizer_.initialize(private_nh);
 
   // 创建发布器（用于可视化）
   global_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
@@ -100,6 +104,37 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
   dynamic_reconfigure::Server<ntu_planner::TrajectoryOptimizerConfig>::CallbackType cb_optimizer;
   cb_optimizer = boost::bind(&NTUController::optimizerReconfigureCallback, this, _1, _2);
   dsrv_optimizer_->setCallback(cb_optimizer);
+
+  // 设置 dynamic_reconfigure 服务器 3: SDFOptimizer 参数
+  ros::NodeHandle sdf_optimizer_nh(private_nh, "sdf_optimization");
+  dsrv_sdf_optimizer_.reset(new dynamic_reconfigure::Server<ntu_planner::SDFOptimizerConfig>(sdf_optimizer_nh));
+
+  // 从 parameter server 读取 sdf_optimization 参数
+  ntu_planner::SDFOptimizerConfig sdf_optimizer_config;
+  private_nh.param("sdf_optimization/coarse_grid_size", sdf_optimizer_config.coarse_grid_size, 0.1);
+  private_nh.param("sdf_optimization/find_t_star_time_step", sdf_optimizer_config.find_t_star_time_step, 0.1);
+  private_nh.param("sdf_optimization/eta", sdf_optimizer_config.eta, 0.01);
+  private_nh.param("sdf_optimization/c", sdf_optimizer_config.c, 0.1);
+  private_nh.param("sdf_optimization/tol", sdf_optimizer_config.tol, 1e-6);
+  private_nh.param("sdf_optimization/max_iter", sdf_optimizer_config.max_iter, 1000);
+  private_nh.param("sdf_optimization/sdf_test", sdf_optimizer_config.sdf_test, false);
+  private_nh.param("sdf_optimization/sdf_resolution", sdf_optimizer_config.sdf_resolution, 0.8);
+  private_nh.param("sdf_optimization/sdf_safety_hor", sdf_optimizer_config.sdf_safety_hor, 1.0);
+  private_nh.param("sdf_optimization/sdf_opimiz_times_max", sdf_optimizer_config.sdf_opimiz_times_max, 10000);
+  private_nh.param("sdf_optimization/sdf_opimiz_weight_time", sdf_optimizer_config.sdf_opimiz_weight_time, 1.0);
+  private_nh.param("sdf_optimization/sdf_opimiz_weight_energy_x", sdf_optimizer_config.sdf_opimiz_weight_energy_x, 1.0);
+  private_nh.param("sdf_optimization/sdf_opimiz_weight_energy_y", sdf_optimizer_config.sdf_opimiz_weight_energy_y, 1.0);
+  private_nh.param("sdf_optimization/sdf_opimiz_weight_energy_w", sdf_optimizer_config.sdf_opimiz_weight_energy_w, 1.0);
+  private_nh.param("sdf_optimization/sdf_opimiz_weight_swept_volume", sdf_optimizer_config.sdf_opimiz_weight_swept_volume, 0.1);
+  private_nh.param("sdf_optimization/sdf_opimiz_weight_safety", sdf_optimizer_config.sdf_opimiz_weight_safety, 1.0);
+
+  // 更新初始配置（不触发回调）
+  dsrv_sdf_optimizer_->updateConfig(sdf_optimizer_config);
+
+  // 设置回调函数
+  dynamic_reconfigure::Server<ntu_planner::SDFOptimizerConfig>::CallbackType cb_sdf_optimizer;
+  cb_sdf_optimizer = boost::bind(&NTUController::sdfOptimizerReconfigureCallback, this, _1, _2);
+  dsrv_sdf_optimizer_->setCallback(cb_sdf_optimizer);
 
   initialized_ = true;
   ROS_INFO("NTUController initialized successfully");
@@ -184,6 +219,32 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
   if (optimization_success_)
   {
     ROS_INFO("Trajectory optimization successful! Generated %ld optimized points", optimized_points_.cols());
+
+    // 进行SDF优化（使用第一次优化的结果）
+    ROS_INFO("Starting SDF optimization...");
+
+    // 从costmap获取障碍物点云
+    // TODO: 这里需要根据实际情况获取障碍物点云
+    // 暂时使用空的障碍物点云
+    Eigen::Matrix3Xd obstacle_points(3, 0);
+
+    sdf_optimization_success_ = sdf_optimizer_.optimizePath(
+        optimized_points_,
+        optimized_times_,
+        obstacle_points,
+        sdf_optimized_points_,
+        sdf_optimized_times_);
+
+    if (sdf_optimization_success_)
+    {
+      ROS_INFO("SDF optimization successful! Generated %ld SDF optimized points", sdf_optimized_points_.cols());
+    }
+    else
+    {
+      ROS_WARN("SDF optimization failed, will use first-stage optimization result");
+      sdf_optimized_points_ = optimized_points_;
+      sdf_optimized_times_ = optimized_times_;
+    }
   }
   else
   {
@@ -487,6 +548,22 @@ void NTUController::optimizerReconfigureCallback(ntu_planner::TrajectoryOptimize
       config.viz_only_control_points, config.viz_time_step);
 
   ROS_INFO("TrajectoryOptimizer parameters updated via dynamic_reconfigure");
+}
+
+void NTUController::sdfOptimizerReconfigureCallback(ntu_planner::SDFOptimizerConfig &config, uint32_t level)
+{
+  ROS_INFO("SDFOptimizer dynamic reconfigure callback triggered");
+
+  // 更新SDF优化器的参数
+  sdf_optimizer_.updateParameters(
+      config.coarse_grid_size, config.find_t_star_time_step, config.eta, config.c,
+      config.tol, config.max_iter, config.sdf_test, config.sdf_resolution,
+      config.sdf_safety_hor, config.sdf_opimiz_times_max, config.sdf_opimiz_weight_time,
+      config.sdf_opimiz_weight_energy_x, config.sdf_opimiz_weight_energy_y,
+      config.sdf_opimiz_weight_energy_w, config.sdf_opimiz_weight_swept_volume,
+      config.sdf_opimiz_weight_safety);
+
+  ROS_INFO("SDFOptimizer parameters updated via dynamic_reconfigure");
 }
 
 } // namespace ntu_planner

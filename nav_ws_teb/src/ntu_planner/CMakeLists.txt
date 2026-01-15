@@ -57,6 +57,7 @@ generate_messages(
 generate_dynamic_reconfigure_options(
   cfg/NTUController.cfg
   cfg/TrajectoryOptimizer.cfg
+  cfg/SDFOptimizer.cfg
 )
 
 catkin_package(
@@ -96,10 +97,16 @@ set(FORTRAN_SOURCES
   include/utils/lmbm_sub.f
 )
 
-## 编译自定义 local planner 库（包含轨迹优化器）
+## 编译CUDA文件
+cuda_add_library(sdf_cuda_lib
+  src/SDF.cu
+)
+
+## 编译自定义 local planner 库（包含轨迹优化器和SDF优化器）
 add_library(ntu_planner
   src/ntu_local_planner.cpp
   src/trajectory_optimizer.cpp
+  src/sdf_optimizer.cpp
   include/utils/lmbm.cpp
   ${FORTRAN_SOURCES}
 )
@@ -113,6 +120,7 @@ add_dependencies(ntu_planner
 target_link_libraries(ntu_planner
   ${catkin_LIBRARIES}
   ${CUDA_LIBRARIES}
+  sdf_cuda_lib
   gfortran
 )
 

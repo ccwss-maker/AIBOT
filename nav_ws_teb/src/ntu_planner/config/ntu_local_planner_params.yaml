@@ -34,3 +34,27 @@ NTUController:
     # 可视化参数
     viz_only_control_points: true  # true: 仅显示控制点, false: 显示采样轨迹
     viz_time_step: 0.2       # 轨迹采样时间步长（秒），仅在 viz_only_control_points=false 时生效
+
+  # ========== SDF优化器参数 ==========
+  sdf_optimization:
+    # Find t_star 参数
+    coarse_grid_size: 0.1                 # 粗网格大小
+    find_t_star_time_step: 0.1           # 时间步长
+    eta: 0.01                             # 学习率
+    c: 0.1                                # Armijo控制参数
+    tol: 1.0e-6                           # 容差
+    max_iter: 1000                        # 最大迭代次数
+
+    # Compute SDF 参数
+    sdf_test: false                       # SDF测试模式
+    sdf_resolution: 0.8                   # SDF分辨率
+    sdf_safety_hor: 1.0                   # 安全距离
+
+    # Optimization 参数
+    sdf_opimiz_times_max: 10000           # 最大优化步数
+    sdf_opimiz_weight_time: 1.0           # 时间代价权重
+    sdf_opimiz_weight_energy_x: 1.0       # X方向能量权重
+    sdf_opimiz_weight_energy_y: 1.0       # Y方向能量权重
+    sdf_opimiz_weight_energy_w: 1.0       # 航向角能量权重
+    sdf_opimiz_weight_swept_volume: 0.1   # 扫掠体积权重
+    sdf_opimiz_weight_safety: 1.0         # 安全性权重

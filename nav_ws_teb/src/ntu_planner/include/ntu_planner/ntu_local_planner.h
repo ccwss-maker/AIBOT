@@ -11,7 +11,9 @@
 #include <dynamic_reconfigure/server.h>
 #include <ntu_planner/NTUControllerConfig.h>
 #include <ntu_planner/TrajectoryOptimizerConfig.h>
+#include <ntu_planner/SDFOptimizerConfig.h>
 #include "ntu_planner/trajectory_optimizer.h"
+#include "ntu_planner/sdf_optimizer.h"
 
 namespace ntu_planner
 {
@@ -113,12 +115,17 @@ private:
   std::vector<geometry_msgs::PoseStamped> global_plan_;
 
   // 优化后的轨迹
-  Eigen::Matrix3Xd optimized_points_;  // 优化后的参考点 (3 x N)
-  Eigen::VectorXd optimized_times_;    // 每段的时间参数
-  bool optimization_success_;           // 优化是否成功
+  Eigen::Matrix3Xd optimized_points_;      // 第一次优化后的参考点 (3 x N)
+  Eigen::VectorXd optimized_times_;        // 第一次优化后的时间参数
+  bool optimization_success_;               // 第一次优化是否成功
+
+  Eigen::Matrix3Xd sdf_optimized_points_;  // SDF优化后的参考点 (3 x N)
+  Eigen::VectorXd sdf_optimized_times_;    // SDF优化后的时间参数
+  bool sdf_optimization_success_;           // SDF优化是否成功
 
   // 轨迹优化器
   TrajectoryOptimizer trajectory_optimizer_;
+  SDFOptimizer sdf_optimizer_;
 
   // 当前目标点索引（在全局路径中）
   size_t current_waypoint_idx_;
@@ -141,8 +148,10 @@ private:
   // Dynamic Reconfigure
   boost::shared_ptr<dynamic_reconfigure::Server<ntu_planner::NTUControllerConfig>> dsrv_controller_;
   boost::shared_ptr<dynamic_reconfigure::Server<ntu_planner::TrajectoryOptimizerConfig>> dsrv_optimizer_;
+  boost::shared_ptr<dynamic_reconfigure::Server<ntu_planner::SDFOptimizerConfig>> dsrv_sdf_optimizer_;
   void controllerReconfigureCallback(ntu_planner::NTUControllerConfig &config, uint32_t level);
   void optimizerReconfigureCallback(ntu_planner::TrajectoryOptimizerConfig &config, uint32_t level);
+  void sdfOptimizerReconfigureCallback(ntu_planner::SDFOptimizerConfig &config, uint32_t level);
 
   /**
    * @brief 从参数服务器加载参数

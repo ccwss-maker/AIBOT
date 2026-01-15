@@ -100,7 +100,7 @@ obstacle_layer:
 # Inflation Layer 配置
 # ============================================================================
 inflation_layer:
-  enabled: true                      # 是否启用，默认: true
+  enabled: false                      # 是否启用，默认: true
   inflation_radius: 0.10             # 膨胀半径 (米)，默认: 0.55
   cost_scaling_factor: 1.0           # 代价缩放因子，默认: 10.0
   inflate_unknown: false             # 是否膨胀未知区域，默认: false
