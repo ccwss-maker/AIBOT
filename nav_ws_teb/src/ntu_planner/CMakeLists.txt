@@ -7,7 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   rospy
   std_msgs
-  teb_local_planner
+  # teb_local_planner
   tf
   message_generation
 )
