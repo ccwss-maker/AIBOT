@@ -35,6 +35,7 @@ Livox_ws/
 ws_system/
 dispatch_ws/src/dispatch_control/Map/ntuitive_align/
 dispatch_ws/src/dispatch_control/Map/outside/
+svplan/
 
 # ========== Others ==========
 *.launch~

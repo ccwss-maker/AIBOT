@@ -11,7 +11,7 @@
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_local.yaml" command="load" ns="local_costmap" />
         
         <!-- 加载 NTU Controller 参数 -->
-        <rosparam file="$(find ntu_planner)/config/ntu_local_planner_params.yaml" command="load" />
+        <rosparam file="$(find ntu_planner)/config/ntu_local_planner_params.yaml" command="load" ns="ntu_planner"/>
         
         <!-- 也可以保留 DWA 配置作为参考 -->
         <!-- <rosparam file="$(find ntu_planner)/config/dwa_local_planner_params.yaml" command="load" /> -->

@@ -14,6 +14,7 @@ NTUController::NTUController()
     : initialized_(false),
       goal_reached_(false),
       current_waypoint_idx_(0),
+      optimization_success_(false),
       tf_(nullptr),
       costmap_ros_(nullptr),
       costmap_(nullptr)
@@ -39,13 +40,65 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
 
   // 创建私有命名空间的 NodeHandle
   ros::NodeHandle private_nh("~/" + name_);
+  nh_ = private_nh;
 
   // 加载参数
   loadParameters();
 
+  // 初始化轨迹优化器
+  trajectory_optimizer_.initialize(private_nh);
+
   // 创建发布器（用于可视化）
   global_plan_pub_ = private_nh.advertise<nav_msgs::Path>("global_plan", 1);
   // target_point_pub_ = private_nh.advertise<visualization_msgs::Marker>("target_point", 1);
+
+  // 设置 dynamic_reconfigure 服务器 1: NTUController 参数
+  dsrv_controller_.reset(new dynamic_reconfigure::Server<ntu_planner::NTUControllerConfig>(private_nh));
+
+  // 先将当前参数值同步到 dynamic_reconfigure
+  ntu_planner::NTUControllerConfig controller_config;
+  controller_config.max_vel_x = max_vel_x_;
+  controller_config.max_vel_theta = max_vel_theta_;
+  controller_config.xy_goal_tolerance = xy_goal_tolerance_;
+  controller_config.yaw_goal_tolerance = yaw_goal_tolerance_;
+  controller_config.lookahead_distance = lookahead_distance_;
+
+  // 更新初始配置（不触发回调）
+  dsrv_controller_->updateConfig(controller_config);
+
+  // 设置回调函数
+  dynamic_reconfigure::Server<ntu_planner::NTUControllerConfig>::CallbackType cb_controller;
+  cb_controller = boost::bind(&NTUController::controllerReconfigureCallback, this, _1, _2);
+  dsrv_controller_->setCallback(cb_controller);
+
+  // 设置 dynamic_reconfigure 服务器 2: TrajectoryOptimizer 参数
+  ros::NodeHandle optimizer_nh(private_nh, "trajectory_optimizer");
+  dsrv_optimizer_.reset(new dynamic_reconfigure::Server<ntu_planner::TrajectoryOptimizerConfig>(optimizer_nh));
+
+  // 从 parameter server 读取 trajectory_optimizer 参数
+  ntu_planner::TrajectoryOptimizerConfig optimizer_config;
+  private_nh.param("trajectory_optimizer/weight_time", optimizer_config.weight_time, 0.1);
+  private_nh.param("trajectory_optimizer/weight_energy_x", optimizer_config.weight_energy_x, 1.0);
+  private_nh.param("trajectory_optimizer/weight_energy_y", optimizer_config.weight_energy_y, 1.0);
+  private_nh.param("trajectory_optimizer/weight_energy_w", optimizer_config.weight_energy_w, 0.1);
+  private_nh.param("trajectory_optimizer/weight_position_x", optimizer_config.weight_position_x, 1.0);
+  private_nh.param("trajectory_optimizer/weight_position_y", optimizer_config.weight_position_y, 1.0);
+  private_nh.param("trajectory_optimizer/weight_position_w", optimizer_config.weight_position_w, 1.0);
+  private_nh.param("trajectory_optimizer/init_time", optimizer_config.init_time, 0.5);
+  private_nh.param("trajectory_optimizer/astar_point_interval", optimizer_config.astar_point_interval, 2);
+  private_nh.param("trajectory_optimizer/max_iterations", optimizer_config.max_iterations, 1000);
+  private_nh.param("trajectory_optimizer/min_step", optimizer_config.min_step, 1e-5);
+  private_nh.param("trajectory_optimizer/epsilon", optimizer_config.epsilon, 1e-5);
+  private_nh.param("trajectory_optimizer/viz_only_control_points", optimizer_config.viz_only_control_points, true);
+  private_nh.param("trajectory_optimizer/viz_time_step", optimizer_config.viz_time_step, 0.2);
+
+  // 更新初始配置（不触发回调）
+  dsrv_optimizer_->updateConfig(optimizer_config);
+
+  // 设置回调函数
+  dynamic_reconfigure::Server<ntu_planner::TrajectoryOptimizerConfig>::CallbackType cb_optimizer;
+  cb_optimizer = boost::bind(&NTUController::optimizerReconfigureCallback, this, _1, _2);
+  dsrv_optimizer_->setCallback(cb_optimizer);
 
   initialized_ = true;
   ROS_INFO("NTUController initialized successfully");
@@ -53,14 +106,15 @@ void NTUController::initialize(std::string name, TF *tf, costmap_2d::Costmap2DRO
 
 void NTUController::loadParameters()
 {
-  ros::NodeHandle private_nh("~/" + name_);
+  // 使用已经创建的 NodeHandle
+  ROS_INFO("Loading parameters from namespace: %s", nh_.getNamespace().c_str());
 
   // 读取参数，如果没有设置则使用默认值
-  private_nh.param("max_vel_x", max_vel_x_, 1.0);
-  private_nh.param("max_vel_theta", max_vel_theta_, 1.0);
-  private_nh.param("xy_goal_tolerance", xy_goal_tolerance_, 0.2);
-  private_nh.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.2);
-  private_nh.param("lookahead_distance", lookahead_distance_, 1.0);
+  nh_.param("max_vel_x", max_vel_x_, 1.0);
+  nh_.param("max_vel_theta", max_vel_theta_, 1.0);
+  nh_.param("xy_goal_tolerance", xy_goal_tolerance_, 0.2);
+  nh_.param("yaw_goal_tolerance", yaw_goal_tolerance_, 0.2);
+  nh_.param("lookahead_distance", lookahead_distance_, 1.0);
 
   ROS_INFO("NTUController parameters:");
   ROS_INFO("  max_vel_x: %.2f m/s", max_vel_x_);
@@ -68,6 +122,7 @@ void NTUController::loadParameters()
   ROS_INFO("  xy_goal_tolerance: %.2f m", xy_goal_tolerance_);
   ROS_INFO("  yaw_goal_tolerance: %.2f rad", yaw_goal_tolerance_);
   ROS_INFO("  lookahead_distance: %.2f m", lookahead_distance_);
+  ROS_INFO("  trajectory_optimization: ENABLED (always)");
 }
 
 bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
@@ -90,6 +145,20 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
   goal_reached_ = false;
 
   ROS_INFO("NTUController received new path with %lu points", plan.size());
+
+  // 始终进行 MINCO 轨迹优化
+  ROS_INFO("Starting trajectory optimization...");
+  optimization_success_ = trajectory_optimizer_.optimizePath(plan, optimized_points_, optimized_times_);
+
+  if (optimization_success_)
+  {
+    ROS_INFO("Trajectory optimization successful! Generated %ld optimized points", optimized_points_.cols());
+  }
+  else
+  {
+    ROS_WARN("Trajectory optimization failed, will use original global path as fallback");
+  }
+
   return true;
 }
 
@@ -348,6 +417,45 @@ void NTUController::publishVisualization()
     
   //   target_point_pub_.publish(marker);
   // }
+}
+
+void NTUController::controllerReconfigureCallback(ntu_planner::NTUControllerConfig &config, uint32_t level)
+{
+  ROS_INFO("NTUController dynamic reconfigure callback triggered");
+
+  // 更新 NTUController 自己的参数
+  max_vel_x_ = config.max_vel_x;
+  max_vel_theta_ = config.max_vel_theta;
+  xy_goal_tolerance_ = config.xy_goal_tolerance;
+  yaw_goal_tolerance_ = config.yaw_goal_tolerance;
+  lookahead_distance_ = config.lookahead_distance;
+
+  // 同时更新到 parameter server
+  nh_.setParam("max_vel_x", max_vel_x_);
+  nh_.setParam("max_vel_theta", max_vel_theta_);
+  nh_.setParam("xy_goal_tolerance", xy_goal_tolerance_);
+  nh_.setParam("yaw_goal_tolerance", yaw_goal_tolerance_);
+  nh_.setParam("lookahead_distance", lookahead_distance_);
+
+  ROS_INFO("NTUController parameters updated:");
+  ROS_INFO("  max_vel_x: %.2f, max_vel_theta: %.2f", max_vel_x_, max_vel_theta_);
+  ROS_INFO("  xy_goal_tolerance: %.2f, yaw_goal_tolerance: %.2f", xy_goal_tolerance_, yaw_goal_tolerance_);
+  ROS_INFO("  lookahead_distance: %.2f", lookahead_distance_);
+}
+
+void NTUController::optimizerReconfigureCallback(ntu_planner::TrajectoryOptimizerConfig &config, uint32_t level)
+{
+  ROS_INFO("TrajectoryOptimizer dynamic reconfigure callback triggered");
+
+  // 更新轨迹优化器的参数
+  trajectory_optimizer_.updateParameters(
+      config.weight_time, config.weight_energy_x, config.weight_energy_y, config.weight_energy_w,
+      config.weight_position_x, config.weight_position_y, config.weight_position_w,
+      config.init_time, config.astar_point_interval, config.max_iterations,
+      config.min_step, config.epsilon,
+      config.viz_only_control_points, config.viz_time_step);
+
+  ROS_INFO("TrajectoryOptimizer parameters updated via dynamic_reconfigure");
 }
 
 } // namespace ntu_planner
