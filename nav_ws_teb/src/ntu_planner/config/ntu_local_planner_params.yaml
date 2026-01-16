@@ -18,17 +18,17 @@ NTUController:
   # ========== 轨迹优化器参数（始终启用）==========
   trajectory_optimizer:
     # 权重参数
-    weight_time: 1.0          # 时间代价权重（越小越希望时间短）
-    weight_energy_x: 1.0      # X 方向平滑度权重
-    weight_energy_y: 1.0      # Y 方向平滑度权重
-    weight_energy_w: 1.0      # 航向角平滑度权重
-    weight_position_x: 1.0    # X 方向位置误差权重（越大越贴近路径）
-    weight_position_y: 1.0    # Y 方向位置误差权重
-    weight_position_w: 0.1    # 航向角位置误差权重
+    weight_time: 10.0          # 时间代价权重（越小越希望时间短）
+    weight_energy_x: 10.0      # X 方向平滑度权重
+    weight_energy_y: 10.0      # Y 方向平滑度权重
+    weight_energy_w: 10.0      # 航向角平滑度权重
+    weight_position_x: 100.0    # X 方向位置误差权重（越大越贴近路径）
+    weight_position_y: 100.0    # Y 方向位置误差权重
+    weight_position_w: 100.0    # 航向角位置误差权重
 
     # 采样和时间参数
-    init_time: 1.0            # 初始每段时间间隔 (秒)
-    astar_point_interval: 5   # 路径点采样间隔（每隔几个点取一个）
+    init_time: 0.5            # 初始每段时间间隔 (秒)
+    astar_point_interval: 8   # 路径点采样间隔（每隔几个点取一个）
 
     # 优化算法参数
     max_iterations: 1000      # LBFGS 最大迭代次数
@@ -53,11 +53,11 @@ NTUController:
 
     # Optimization 参数
     sdf_opimiz_times_max: 10000           # 最大优化步数
-    sdf_opimiz_weight_time: 1.0           # 时间代价权重
-    sdf_opimiz_weight_energy_x: 1.0       # X方向能量权重
-    sdf_opimiz_weight_energy_y: 1.0       # Y方向能量权重
-    sdf_opimiz_weight_energy_w: 1.0       # 航向角能量权重
-    sdf_opimiz_weight_yaw: 0.1            # 航向角权重
+    sdf_opimiz_weight_time: 10.0           # 时间代价权重
+    sdf_opimiz_weight_energy_x: 10.0       # X方向能量权重
+    sdf_opimiz_weight_energy_y: 10.0       # Y方向能量权重
+    sdf_opimiz_weight_energy_w: 10.0       # 航向角能量权重
+    sdf_opimiz_weight_yaw: 100.0            # 航向角权重（增加权重使yaw对齐更重要）
     sdf_opimiz_weight_safety: 0.0         # 安全性权重
 
     # 局部costmap参数（用于SDF优化区域计算）

@@ -236,6 +236,10 @@ double TrajectoryOptimizer::computeCostAndGradient(const Eigen::VectorXd &params
     return cost;
 }
 
+inline double wrapAngle(double a) {
+  return std::atan2(std::sin(a), std::cos(a));
+}
+
 double TrajectoryOptimizer::computePositionCost(Eigen::MatrixX3d &grad_by_points, Eigen::VectorXd &grad_by_times)
 {
     double cost = 0.0;
@@ -245,7 +249,17 @@ double TrajectoryOptimizer::computePositionCost(Eigen::MatrixX3d &grad_by_points
         Eigen::Vector3d V = minco_.b.block((i + 1) * 6 + 1, 0, 1, 3).transpose();
 
         // 计算误差
-        Eigen::Vector3d delta = P - sampled_path_[i];
+        const double dx = P(0) - sampled_path_[i](0);
+        const double dy = P(1) - sampled_path_[i](1);
+        const double dpsi = wrapAngle(P(2) - sampled_path_[i](2));
+
+
+        // 计算误差
+        Eigen::Vector3d delta;
+        delta(0) = P(0) - sampled_path_[i](0);
+        delta(1) = P(1) - sampled_path_[i](1);
+        delta(2) = wrapAngle(P(2) - sampled_path_[i](2));
+        
         Eigen::Vector3d delta_sq(delta(0) * delta(0), delta(1) * delta(1), delta(2) * delta(2));
         Eigen::Vector3d weights(weight_position_x_, weight_position_y_, weight_position_w_);
 
@@ -256,7 +270,7 @@ double TrajectoryOptimizer::computePositionCost(Eigen::MatrixX3d &grad_by_points
         grad_by_points.row(i) = 2.0 * delta.cwiseProduct(weights).transpose();
 
         // 梯度（对时间的梯度，通过速度传播）
-        grad_by_times(i + 1) = grad_by_points.row(i).dot(V);
+        // grad_by_times(i + 1) = grad_time_pos;
     }
 
     return cost;
