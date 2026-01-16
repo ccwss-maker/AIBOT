@@ -509,6 +509,20 @@ namespace minco
             return;
         }
 
+        inline void getVel0PartialGradByCoeffs(Eigen::MatrixX3d &gdC, const Eigen::MatrixX3d &gdV_start, double cx, double cy, double cw) const
+        {
+            gdC.setZero(6 * N, 3);
+            assert(gdV_start.rows() == N && gdV_start.cols() == 3);
+
+            for (int i = 0; i < N; i++)
+            {
+                gdC(6*i + 1, 0) += cx * gdV_start(i, 0); // x: a1
+                gdC(6*i + 1, 1) += cy * gdV_start(i, 1); // y: a1
+                gdC(6*i + 1, 2) += cw * gdV_start(i, 2); // z/yaw: a1
+            }
+        }
+
+
     };
 }
 

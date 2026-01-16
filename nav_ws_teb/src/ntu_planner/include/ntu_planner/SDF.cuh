@@ -51,5 +51,5 @@ struct SDFConfig {
 void GPUProcessConfig(const SDFConfig& config);
 void GPUProcessSDF(Optimized_Trajectory_ init_traj, std::vector<SDF_Map_>& SDF_Map, double& area);
 void GPUProcessGradSDF(Optimized_Trajectory_ traj, Eigen::Matrix3Xd Obstacle_Points, Eigen::MatrixX3d & GradByPositions, Eigen::VectorXd & GradByTimes, double & cost);
-void GPUProcessGradYaw(Optimized_Trajectory_ traj, double sdf_opimiz_weight_yaw_, Eigen::MatrixX3d & GradByPoints_Yaw, Eigen::VectorXd & GradByTimes_Yaw, double & cost);
+void GPUProcessGradYaw(Optimized_Trajectory_ traj, double sdf_opimiz_weight_yaw_, Eigen::MatrixX3d & GradByVx_Vy_Yaw, Eigen::VectorXd & GradByTimes_Yaw, double & cost);
 #endif

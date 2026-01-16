@@ -275,9 +275,21 @@ double SDFOptimizer::costFunctionLmbmParallel(void *ptr, const double *x_variabl
 
     // 4. 航向角代价（通过GPU计算）
     Eigen::MatrixX3d GradByPoints_Yaw = Eigen::MatrixX3d::Zero(traj_.pieceN, 3);
+    Eigen::MatrixX3d GradByVelocity_Yaw = Eigen::MatrixX3d::Zero(traj_.pieceN, 3);
+    Eigen::MatrixX3d GPUGradByVx_Vy_Yaw = Eigen::MatrixX3d::Zero(traj_.pieceN, 3);
     Eigen::VectorXd GradByTimes_Yaw = Eigen::VectorXd::Zero(traj_.pieceN);
     double cost_Yaw;
-    GPUProcessGradYaw(traj_, sdf_opimiz_weight_yaw_, GradByPoints_Yaw, GradByTimes_Yaw, cost_Yaw);
+    GPUProcessGradYaw(traj_, sdf_opimiz_weight_yaw_, GPUGradByVx_Vy_Yaw, GradByTimes_Yaw, cost_Yaw);
+    GradByVelocity_Yaw.col(0) = GPUGradByVx_Vy_Yaw.col(0);
+    GradByVelocity_Yaw.col(1) = GPUGradByVx_Vy_Yaw.col(1);
+    GradByPoints_Yaw.col(2) = GPUGradByVx_Vy_Yaw.col(2);
+    GradByCoeffs.setZero();
+    minco_.getVel0PartialGradByCoeffs(GradByCoeffs, GradByVelocity_Yaw, 1.0, 1.0, 1.0);
+    Eigen::VectorXd TotalGradByTimes;
+    Eigen::Matrix3Xd GradByPoints_Yaw_;
+    minco_.propogateGrad(GradByCoeffs, GradByTimes_Yaw, GradByPoints_Yaw_, TotalGradByTimes);
+    GradByPoints_Yaw.col(0).topRows(GradByPoints_Yaw.rows() - 1) = GradByPoints_Yaw_.row(0).transpose();
+    GradByPoints_Yaw.col(1).topRows(GradByPoints_Yaw.rows() - 1) = GradByPoints_Yaw_.row(1).transpose();
     gradByPoints += GradByPoints_Yaw.topRows(GradByPoints_Yaw.rows() - 1).transpose();
     gradByTimes += GradByTimes_Yaw;
     cost += cost_Yaw;

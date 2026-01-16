@@ -446,7 +446,7 @@ __global__ void Calculate_Grad_SDF_Ob(GPU_Initial_Optimized_Trajectory_ Gpu_Traj
     atomicAdd(GPUCost, jsdf);
 }
 
-__global__ void Calculate_Grad_Yaw(GPU_Initial_Optimized_Trajectory_ Gpu_Traj, double GPUGradByPoints_Yaw[], double GPUGradByTimes_Yaw[], double *GPUCost)
+__global__ void Calculate_Grad_Yaw(GPU_Initial_Optimized_Trajectory_ Gpu_Traj, double GPUGradByVx_Vy_Yaw[], double GPUGradByTimes_Yaw[], double *GPUCost)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= Gpu_Traj.pieceN) return;
@@ -470,22 +470,68 @@ __global__ void Calculate_Grad_Yaw(GPU_Initial_Optimized_Trajectory_ Gpu_Traj, d
     computeAccelerationAtPiece(Gpu_Traj, piece_ID, t_star, A);
     computeYawAtPiece(Gpu_Traj, piece_ID, t_star, &yaw);
     computeYawVelocityAtPiece(Gpu_Traj, piece_ID, t_star, &w);
-    double Yaw_Route;
-    Yaw_Route = atan2(V[1], V[0]);
-    double Yaw_delta = yaw - Yaw_Route;
-    double cost = Yaw_delta * Yaw_delta;
-    double V_inv = 1.0 / fmax(V[0] * V[0] + V[1] * V[1], 1e-10);
 
-    double gradient_Yaw = 2 * Yaw_delta;
-    double gradient_X = 2 * Yaw_delta * (-V[1] * V_inv);
-    double gradient_Y = 2 * Yaw_delta * (V[0] * V_inv);
-    double gradient_T = gradient_Yaw * w + gradient_X * V[0] + gradient_Y * V[1];
-    atomicAdd(&GPUGradByPoints_Yaw[0 * pieceN + piece_ID], gradient_X);
-    atomicAdd(&GPUGradByPoints_Yaw[1 * pieceN + piece_ID], gradient_Y);
-    atomicAdd(&GPUGradByPoints_Yaw[2 * pieceN + piece_ID], gradient_Yaw);
+    double sin_yaw = sin(yaw);
+    double cos_yaw = cos(yaw);
+
+    double lateral_violation = V[0] * sin_yaw - V[1] * cos_yaw;
+    double horizontal_violation = V[0] * cos_yaw + V[1] * sin_yaw;
+
+    double cost = lateral_violation * lateral_violation;
+
+    double gradient_VX = 2 * lateral_violation * sin_yaw;
+    double gradient_VY = -2 * lateral_violation * cos_yaw;
+    double gradient_Yaw = 2 * lateral_violation * horizontal_violation;
+
+    double gradient_T = gradient_VX * A[0] + gradient_VY * A[1] + gradient_Yaw * w;
+    
+    atomicAdd(&GPUGradByVx_Vy_Yaw[0 * pieceN + piece_ID], gradient_VX);
+    atomicAdd(&GPUGradByVx_Vy_Yaw[1 * pieceN + piece_ID], gradient_VY);
+    atomicAdd(&GPUGradByVx_Vy_Yaw[2 * pieceN + piece_ID], gradient_Yaw);
     atomicAdd(&GPUGradByTimes_Yaw[piece_ID], gradient_T);
     atomicAdd(GPUCost, cost);
 }
+
+// __global__ void Calculate_Grad_Yaw(GPU_Initial_Optimized_Trajectory_ Gpu_Traj, double GPUGradByPoints_Yaw[], double GPUGradByTimes_Yaw[], double *GPUCost)
+// {
+//     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+//     if (idx >= Gpu_Traj.pieceN) return;
+
+//     // 声明共享内存
+//     __shared__ int pieceN;
+//     if(threadIdx.x == 0) pieceN = Gpu_Traj.pieceN;
+//     __syncthreads();
+
+//     int obstacle_ID = idx / (pieceN);
+//     int piece_ID = idx % (pieceN);
+    
+//     double t_star = 0;
+
+//     // 获取当前时间 t 下的信息
+//     double V[2] = {0};
+//     double A[2] = {0};
+//     double yaw = 0;
+//     double w = 0;
+//     computeVelocityAtPiece(Gpu_Traj, piece_ID, t_star, V);
+//     computeAccelerationAtPiece(Gpu_Traj, piece_ID, t_star, A);
+//     computeYawAtPiece(Gpu_Traj, piece_ID, t_star, &yaw);
+//     computeYawVelocityAtPiece(Gpu_Traj, piece_ID, t_star, &w);
+//     double Yaw_Route;
+//     Yaw_Route = atan2(V[1], V[0]);
+//     double Yaw_delta = yaw - Yaw_Route;
+//     double cost = Yaw_delta * Yaw_delta;
+//     double V_inv = 1.0 / fmax(V[0] * V[0] + V[1] * V[1], 1e-10);
+
+//     double gradient_Yaw = 2 * Yaw_delta;
+//     double gradient_X = 2 * Yaw_delta * (-V[1] * V_inv);
+//     double gradient_Y = 2 * Yaw_delta * (V[0] * V_inv);
+//     double gradient_T = gradient_Yaw * w + gradient_X * V[0] + gradient_Y * V[1];
+//     atomicAdd(&GPUGradByPoints_Yaw[0 * pieceN + piece_ID], gradient_X);
+//     atomicAdd(&GPUGradByPoints_Yaw[1 * pieceN + piece_ID], gradient_Y);
+//     atomicAdd(&GPUGradByPoints_Yaw[2 * pieceN + piece_ID], gradient_Yaw);
+//     atomicAdd(&GPUGradByTimes_Yaw[piece_ID], gradient_T);
+//     atomicAdd(GPUCost, cost);
+// }
 
 void GPUProcessConfig(const SDFConfig& config)
 {
@@ -677,7 +723,7 @@ void GPUProcessGradSDF(Optimized_Trajectory_ traj, Eigen::Matrix3Xd Obstacle_Poi
     cudaFree(GPUCost);
 }
 
-void GPUProcessGradYaw(Optimized_Trajectory_ traj, double sdf_opimiz_weight_yaw_, Eigen::MatrixX3d & GradByPoints_Yaw, Eigen::VectorXd & GradByTimes_Yaw, double & cost)
+void GPUProcessGradYaw(Optimized_Trajectory_ traj, double sdf_opimiz_weight_yaw_, Eigen::MatrixX3d & GradByVx_Vy_Yaw, Eigen::VectorXd & GradByTimes_Yaw, double & cost)
 {
     // 获取轨迹信息
     int b_size = traj.pieceN * 6 * 3 * sizeof(double);
@@ -695,33 +741,33 @@ void GPUProcessGradYaw(Optimized_Trajectory_ traj, double sdf_opimiz_weight_yaw_
     int blockSize, numBlocks;
     
     // 计算梯度
-    double *GPUGradByPoints_Yaw, *GPUGradByTimes_Yaw, *GPUCost;
-    cudaMalloc(&GPUGradByPoints_Yaw, traj.pieceN * 3 * sizeof(double));
+    double *GPUGradByVx_Vy_Yaw, *GPUGradByTimes_Yaw, *GPUCost;
+    cudaMalloc(&GPUGradByVx_Vy_Yaw, traj.pieceN * 3 * sizeof(double));
     cudaMalloc(&GPUGradByTimes_Yaw, traj.pieceN * sizeof(double));
     cudaMalloc(&GPUCost, 1 * sizeof(double));
-    cudaMemset(GPUGradByPoints_Yaw, 0, traj.pieceN * 3 * sizeof(double));
+    cudaMemset(GPUGradByVx_Vy_Yaw, 0, traj.pieceN * 3 * sizeof(double));
     cudaMemset(GPUGradByTimes_Yaw, 0, traj.pieceN * sizeof(double));
     cudaMemset(GPUCost, 0, sizeof(double));
     blockSize = 256;
     numBlocks = (traj.pieceN + blockSize - 1) / blockSize;
-    Calculate_Grad_Yaw<<<numBlocks, blockSize>>>(Gpu_Traj, GPUGradByPoints_Yaw, GPUGradByTimes_Yaw, GPUCost);
+    Calculate_Grad_Yaw<<<numBlocks, blockSize>>>(Gpu_Traj, GPUGradByVx_Vy_Yaw, GPUGradByTimes_Yaw, GPUCost);
     cudaDeviceSynchronize();
 
     // 复制结果到主机
     double CPU_Cost;
-    cudaMemcpy(GradByPoints_Yaw.data(), GPUGradByPoints_Yaw, traj.pieceN * 3 * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(GradByVx_Vy_Yaw.data(), GPUGradByVx_Vy_Yaw, traj.pieceN * 3 * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(GradByTimes_Yaw.data(), GPUGradByTimes_Yaw, traj.pieceN * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(&CPU_Cost, GPUCost, 1 * sizeof(double), cudaMemcpyDeviceToHost);
     
     // 统一乘以权重
-    GradByPoints_Yaw *= sdf_opimiz_weight_yaw_;
+    GradByVx_Vy_Yaw *= sdf_opimiz_weight_yaw_;
     GradByTimes_Yaw *= sdf_opimiz_weight_yaw_;
     cost = CPU_Cost * sdf_opimiz_weight_yaw_;
 
     // 释放CUDA内存
     cudaFree(Gpu_Traj.b);
     cudaFree(Gpu_Traj.times);
-    cudaFree(GPUGradByPoints_Yaw);
+    cudaFree(GPUGradByVx_Vy_Yaw);
     cudaFree(GPUGradByTimes_Yaw);
     cudaFree(GPUCost);
 }
