@@ -174,8 +174,8 @@ void TrajectoryOptimizer::samplePath(const std::vector<geometry_msgs::PoseStampe
     for (size_t i = 1; i < global_plan.size() - 1; i += (astar_point_interval_ + 1))
     {   
         double yaw = tf2::getYaw(global_plan[i].pose.orientation);
-        ROS_INFO("Sampling global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
-                 i, global_plan[i].pose.position.x, global_plan[i].pose.position.y, yaw, yaw * 180.0 / M_PI);
+        // ROS_INFO("Sampling global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
+        //          i, global_plan[i].pose.position.x, global_plan[i].pose.position.y, yaw, yaw * 180.0 / M_PI);
         Eigen::Vector3d point(global_plan[i].pose.position.x,
                               global_plan[i].pose.position.y,
                               yaw);

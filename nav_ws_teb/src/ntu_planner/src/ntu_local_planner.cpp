@@ -193,13 +193,13 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
     global_plan_[i].pose.orientation = tf2::toMsg(q);
   }
   
-  //DEBUG 打印航向角
-  for (size_t i = 0; i < global_plan_.size(); i++)
-  {
-    double yaw = tf2::getYaw(global_plan_[i].pose.orientation);
-    ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
-             i, global_plan_[i].pose.position.x, global_plan_[i].pose.position.y, yaw, yaw * 180.0 / M_PI);
-  }
+  // //DEBUG 打印航向角
+  // for (size_t i = 0; i < global_plan_.size(); i++)
+  // {
+  //   double yaw = tf2::getYaw(global_plan_[i].pose.orientation);
+  //   ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
+  //            i, global_plan_[i].pose.position.x, global_plan_[i].pose.position.y, yaw, yaw * 180.0 / M_PI);
+  // }
 
   ROS_INFO("NTUController received new path with %lu points", plan.size());
 
@@ -240,20 +240,76 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
   if (optimization_success_)
   {
     ROS_INFO("Trajectory optimization successful! Generated %ld optimized points", optimized_points_.cols());
-    //DEBUG 打印航向角
-    for (size_t i = 0; i < optimized_points_.cols(); i++)
-    {
-      double yaw = optimized_points_(2, i);
-      ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
-               i, optimized_points_(0, i), optimized_points_(1, i), yaw, yaw * 180.0 / M_PI);
-    }
+    // //DEBUG 打印航向角
+    // for (size_t i = 0; i < optimized_points_.cols(); i++)
+    // {
+    //   double yaw = optimized_points_(2, i);
+    //   ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
+    //            i, optimized_points_(0, i), optimized_points_(1, i), yaw, yaw * 180.0 / M_PI);
+    // }
     // 进行SDF优化（使用第一次优化的结果）
     ROS_INFO("Starting SDF optimization...");
 
-    // 从costmap获取障碍物点云
-    // TODO: 这里需要根据实际情况获取障碍物点云
-    // 暂时使用空的障碍物点云
-    Eigen::Matrix3Xd obstacle_points(3, 0);
+    // 从costmap获取障碍物点云（在global_frame中）
+    std::vector<Eigen::Vector3d> obstacle_list;
+
+    unsigned int size_x = costmap_->getSizeInCellsX();
+    unsigned int size_y = costmap_->getSizeInCellsY();
+    unsigned char obstacle_threshold = 253; // INSCRIBED_INFLATED_OBSTACLE (包括致命障碍物254)
+
+    // 获取costmap原点信息用于调试
+    double origin_x = costmap_->getOriginX();
+    double origin_y = costmap_->getOriginY();
+    ROS_INFO("Costmap info: size=(%u x %u), origin=(%.2f, %.2f), frame=%s",
+             size_x, size_y, origin_x, origin_y, costmap_ros_->getGlobalFrameID().c_str());
+
+    for (unsigned int i = 0; i < size_x; ++i)
+    {
+      for (unsigned int j = 0; j < size_y; ++j)
+      {
+        unsigned char cost = costmap_->getCost(i, j);
+
+        // 只提取障碍物点（代价值高的栅格）
+        if (cost >= obstacle_threshold)
+        {
+          double wx, wy;
+          costmap_->mapToWorld(i, j, wx, wy);
+          // costmap的世界坐标已经在global_frame中了
+          obstacle_list.push_back(Eigen::Vector3d(wx, wy, 0.0));
+        }
+      }
+    }
+
+    // 转换为 Eigen::Matrix3Xd
+    Eigen::Matrix3Xd obstacle_points(3, obstacle_list.size());
+    for (size_t i = 0; i < obstacle_list.size(); ++i)
+    {
+      obstacle_points.col(i) = obstacle_list[i];
+    }
+
+    ROS_INFO("Extracted %zu obstacle points from costmap", obstacle_list.size());
+
+    // DEBUG: 打印前几个障碍物点坐标
+    if (obstacle_list.size() > 0)
+    {
+      size_t num_to_print = std::min(size_t(10), obstacle_list.size());
+      ROS_INFO("First %zu obstacle points:", num_to_print);
+      for (size_t i = 0; i < obstacle_list.size(); ++i)
+      {
+        if(obstacle_list[i].x() > 2.5 && obstacle_list[i].x() < 3.5 && obstacle_list[i].y() > -2.5 && obstacle_list[i].y() < -1.5)
+        ROS_INFO("  [%zu]: (%.3f, %.3f)", i, obstacle_list[i].x(), obstacle_list[i].y());
+
+      }
+    }
+    // Eigen::Matrix3Xd obstacle_points(3, 4);
+    obstacle_points.col(0) << 2.850, -2.050, 0.0;
+    // obstacle_points.col(0) << 3.0, -2.0, 0.0;
+    obstacle_points.col(1) << 2.850, -1.950, 0.0;
+    obstacle_points.col(2) << 2.950, -2.050, 0.0;
+    obstacle_points.col(3) << 2.950, -2.950, 0.0;
+
+
+
 
     sdf_optimization_success_ = sdf_optimizer_.optimizePath(
         optimized_points_,

@@ -559,8 +559,8 @@ void GPUProcessConfig(const SDFConfig& config)
     // else
     {
         // 使用默认值
-        Car_Length = 0.1;
-        Car_Width = 0.7;
+        Car_Length = 0.9;
+        Car_Width = 0.6;
     }
 
     // 定义遍历区域

@@ -264,14 +264,16 @@ double SDFOptimizer::costFunctionLmbmParallel(void *ptr, const double *x_variabl
     cost += sdf_opimiz_weight_time_ * traj_.times.sum();
     gradByTimes.array() += sdf_opimiz_weight_time_;
 
-    // // 3. 障碍物代价（通过GPU计算SDF梯度）
-    // Eigen::MatrixX3d GradByPoints_Ob = Eigen::MatrixX3d::Zero(traj_.pieceN, 3);
-    // Eigen::VectorXd GradByTimes_Ob = Eigen::VectorXd::Zero(traj_.pieceN);
-    // double cost_Ob;
-    // GPUProcessGradSDF(traj_, obstacle_points_, GradByPoints_Ob, GradByTimes_Ob, cost_Ob);
-    // gradByPoints += GradByPoints_Ob.topRows(GradByPoints_Ob.rows() - 1).transpose();
-    // gradByTimes += GradByTimes_Ob;
-    // cost += cost_Ob;
+    // 3. 障碍物代价（通过GPU计算SDF梯度）
+    Eigen::MatrixX3d GradByPoints_Ob = Eigen::MatrixX3d::Zero(traj_.pieceN, 3);
+    Eigen::VectorXd GradByTimes_Ob = Eigen::VectorXd::Zero(traj_.pieceN);
+    double cost_Ob;
+    // std::cout << obstacle_points_.col(0).transpose() << std::endl;
+
+    GPUProcessGradSDF(traj_, obstacle_points_, GradByPoints_Ob, GradByTimes_Ob, cost_Ob);
+    gradByPoints += GradByPoints_Ob.topRows(GradByPoints_Ob.rows() - 1).transpose();
+    gradByTimes += GradByTimes_Ob;
+    cost += cost_Ob;
 
     // 4. 航向角代价（通过GPU计算）
     Eigen::MatrixX3d GradByPoints_Yaw = Eigen::MatrixX3d::Zero(traj_.pieceN, 3);
