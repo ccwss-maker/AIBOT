@@ -17,7 +17,7 @@ planner_max_retries: -1          # 规划器最大重试次数，-1 表示无限
 # ============================================================================
 # 控制器 (Controller) 配置
 # ============================================================================
-controller_frequency: 20.0       # 控制器调用频率 (Hz)，默认: 20
+controller_frequency: 5.0        # 控制器调用频率 (Hz)
 controller_patience: 5.0         # 控制器超时时间 (秒)，默认: 5.0
 controller_max_retries: -1       # 控制器最大重试次数，-1 表示无限重试，默认: -1
 
@@ -56,9 +56,12 @@ controllers:
   # - name: ntu_planner/NTUController
   #   type: ntu_planner/NTUController
   
-  # 也可以保留 DWA 作为备选
-  - name: dwa_local_planner/DWAPlannerROS
-    type: dwa_local_planner/DWAPlannerROS
+  # # 也可以保留 DWA 作为备选
+  # - name: dwa_local_planner/DWAPlannerROS
+  #   type: dwa_local_planner/DWAPlannerROS
+
+  - name: teb_local_planner/TebLocalPlannerROS
+    type: teb_local_planner/TebLocalPlannerROS
 
 # ============================================================================
 # 恢复行为插件配置

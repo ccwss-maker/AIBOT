@@ -7,7 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   rospy
   std_msgs
-  # teb_local_planner
+  teb_local_planner
   tf
   message_generation
 )
@@ -30,6 +30,7 @@ catkin_package(
 catkin_install_python(PROGRAMS
   srcipts/reload_planning_controller.py
   srcipts/reload_planning_simulator.py
+  srcipts/mbf_action_example.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

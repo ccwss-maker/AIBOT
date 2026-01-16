@@ -1,0 +1,258 @@
+# TEB Local Planner Configuration - Ackermann Steering
+# 阿克曼转向车辆专用配置
+# 基于 teb_local_planner 源代码的完整参数配置
+# 参考源文件: TebLocalPlannerReconfigure.cfg 和 teb_config.h
+
+TebLocalPlannerROS:
+
+  # ============================================================================
+  # Trajectory (轨迹相关参数)
+  # ============================================================================
+
+  # 轨迹自动调整大小
+  teb_autosize: true                          # 根据时间分辨率自动调整轨迹大小，推荐启用
+
+  # 时间分辨率
+  dt_ref: 0.4                                 # 规划轨迹的期望时间分辨率 (s)，增大以更平滑
+  dt_hysteresis: 0.1                          # 自动调整大小的滞后值 (s)，通常为 dt_ref 的 10%
+
+  # 全局规划参数
+  global_plan_overwrite_orientation: true     # 自动确定局部子目标的方向（全局规划器未考虑方向时）
+  allow_init_with_backwards_motion: true      # 阿克曼车辆通常不允许倒车初始化（除非有后方传感器）
+  max_global_plan_lookahead_dist: 2.0         # 考虑优化的全局规划子集最大长度 (m)，缩短以更贴近全局路径
+  force_reinit_new_goal_dist: 1.0             # 新目标距离超过此值时强制重新初始化 (m)
+  force_reinit_new_goal_angular: 0.78         # 新目标角度差超过此值时强制重新初始化 (rad)
+
+  # 可行性检查
+  feasibility_check_no_poses: 5               # 检查可行性的姿态数量，-1 表示全部检查
+  feasibility_check_lookahead_distance: -1    # 可行性检查的前瞻距离 (m)，-1 表示全部检查
+
+  # 精确计算
+  exact_arc_length: true                      # 阿克曼车辆使用精确弧长计算更准确
+
+  # 调试与可视化
+  publish_feedback: false                     # 发布规划器反馈（仅用于评估或调试）
+
+  # 速度指令提取
+  control_look_ahead_poses: 2                 # 用于提取速度指令的姿态索引，阿克曼车辆需要更多前瞻
+  prevent_look_ahead_poses_near_goal: 3       # 防止在目标附近过冲和振荡
+
+  # 3D 可视化
+  visualize_with_time_as_z_axis_scale: 0      # 大于 0 时使用时间作为 z 轴进行 3D 可视化
+
+  # 高级参数（通常不需要修改）
+  global_plan_prune_distance: 1.0             # 机器人与全局规划途经点之间的距离，用于修剪
+  min_resolution_collision_check_angular: 0.5  # 碰撞检查时的最小角分辨率 (rad)，阿克曼车需要更密集的检查
+
+  # ============================================================================
+  # ViaPoints (途经点参数)
+  # ============================================================================
+
+  global_plan_viapoint_sep: -0.1              # 从全局规划提取的途经点间最小间隔 (m)，负值禁用
+  via_points_ordered: false                   # 是否按顺序遵守途经点
+
+  # ============================================================================
+  # Robot (机器人参数 - 阿克曼转向车辆)
+  # ============================================================================
+
+  # 速度限制（阿克曼转向车辆）
+  max_vel_x: 0.5                              # X 方向最大速度 (m/s)，阿克曼车通常速度较快
+  max_vel_x_backwards: 0.2                    # 倒车最大速度 (m/s)，阿克曼车倒车速度较慢
+  max_vel_theta: 0.5                          # 最大角速度 (rad/s)，受转向角度限制
+
+  # 加速度限制（阿克曼车辆通常加速较快）
+  acc_lim_x: 0.1                              # X 方向最大加速度 (m/s^2)
+  acc_lim_theta: 0.1                          # 最大角加速度 (rad/s^2)
+
+  # 机器人足迹
+  is_footprint_dynamic: false                 # 检查轨迹可行性前是否更新足迹
+
+  # 速度饱和
+  use_proportional_saturation: false          # 阿克曼车辆不需要比例饱和（非全向）
+
+  # TF 变换容差
+  transform_tolerance: 0.5                    # 查询 TF 树的容差 (s)
+
+  # --- 阿克曼转向参数（关键配置） ---
+  min_turning_radius: 0.4                     # 最小转弯半径 (m)，根据实际车辆调整（重要！）
+  wheelbase: 0.71                              # 驱动轴与转向轴距离 (m)，车辆轴距（重要！）
+  cmd_angle_instead_rotvel: false             # 如果控制器接受转向角，设为 true
+
+  # --- 全向移动机器人参数（阿克曼车辆禁用） ---
+  max_vel_y: 0.0                              # Y 方向最大速度 (m/s)，阿克曼车不能侧向移动
+  max_vel_trans: 0.0                          # 最大平移速度 (m/s)，设为 0 让 TEB 使用 max_vel_x
+  acc_lim_y: 0.0                              # Y 方向最大加速度 (m/s^2)，阿克曼车设为 0
+
+  # ============================================================================
+  # GoalTolerance (目标容差参数)
+  # ============================================================================
+
+  xy_goal_tolerance: 0.2                      # 允许的最终位置误差 (m)
+  yaw_goal_tolerance: 0.2                     # 允许的最终角度误差 (rad)
+  free_goal_vel: false                        # 允许机器人以最大速度到达目标
+  trans_stopped_vel: 0.1                      # 认为平移停止的速度阈值 (m/s)
+  theta_stopped_vel: 0.1                      # 认为旋转停止的速度阈值 (rad/s)
+  complete_global_plan: true                  # 如果为 true，防止机器人在到达终点前提前结束路径
+
+  # ============================================================================
+  # Obstacles (障碍物参数)
+  # ============================================================================
+
+  # 基本障碍物距离（阿克曼车辆需要更大的安全距离）
+  min_obstacle_dist: 0.3                      # 与障碍物的最小期望距离 (m)
+  inflation_dist: 0.1                         # 障碍物周围的缓冲区 (m)，应大于 min_obstacle_dist
+  dynamic_obstacle_inflation_dist: 0.6        # 动态障碍物预测位置周围的缓冲区 (m)
+
+  # 动态障碍物
+  include_dynamic_obstacles: true             # 是否用恒速模型预测动态障碍物运动
+
+  # Costmap 障碍物
+  include_costmap_obstacles: true             # 是否直接考虑 costmap 中的障碍物
+  costmap_obstacles_behind_robot_dist: 1.0    # 机器人后方考虑的障碍物距离限制 (m)
+
+  # 障碍物关联策略
+  legacy_obstacle_association: false          # 使用新的障碍物关联策略（更高效）
+  obstacle_association_force_inclusion_factor: 1.5   # 强制包含的障碍物距离倍数
+  obstacle_association_cutoff_factor: 5.0     # 忽略障碍物的距离倍数
+  obstacle_poses_affected: 30                 # 障碍物影响的轨迹姿态数量
+
+  # --- 根据障碍物接近度降低速度 ---
+  obstacle_proximity_ratio_max_vel: 1.0       # 接近障碍物时的最大速度比例
+  obstacle_proximity_lower_bound: 0.0         # 应降低速度的障碍物距离 (m)
+  obstacle_proximity_upper_bound: 0.5         # 应提高速度的障碍物距离 (m)
+
+  # --- Costmap 转换器插件（用于将 costmap 单元转换为点/线/多边形）---
+  costmap_converter_plugin: ""                # costmap_converter 包的插件名称，空表示禁用
+  costmap_converter_spin_thread: true         # 如果为 true，costmap 转换器在单独线程中调用
+  costmap_converter_rate: 5                   # costmap_converter 插件处理 costmap 的频率 (Hz)
+
+  # ============================================================================
+  # Optimization (优化参数)
+  # ============================================================================
+
+  # 优化迭代次数
+  no_inner_iterations: 5                      # 每次外循环中求解器的迭代次数
+  no_outer_iterations: 4                      # 外循环迭代次数
+
+  # 优化开关
+  optimization_activate: true                 # 激活优化
+  optimization_verbose: false                 # 打印详细信息
+
+  # 惩罚函数
+  penalty_epsilon: 0.01                       # 硬约束近似的安全边际（必须小于加速度限制）
+
+  # --- 速度权重 ---
+  weight_max_vel_x: 2.0                       # 满足最大平移速度的优化权重
+  weight_max_vel_y: 2.0                       # 满足最大侧向速度的优化权重（阿克曼车不使用）
+  weight_max_vel_theta: 1.0                   # 满足最大角速度的优化权重
+
+  # --- 加速度权重 ---
+  weight_acc_lim_x: 1.0                       # 满足最大平移加速度的优化权重
+  weight_acc_lim_y: 1.0                       # 满足最大侧向加速度的优化权重（阿克曼车不使用）
+  weight_acc_lim_theta: 1.0                   # 满足最大角加速度的优化权重
+
+  # --- 运动学权重（阿克曼车辆关键配置） ---
+  weight_kinematics_nh: 100.0                 # 满足非完整约束的优化权重（降低以避免过度绕路）
+  weight_kinematics_forward_drive: 10.0       # 强制前进方向的权重（提高以避免绕圈）
+  weight_kinematics_turning_radius: 1.0       # 强制最小转弯半径的权重（阿克曼车关键参数！）
+
+  # --- 时间和路径权重 ---
+  weight_optimaltime: 1.0                     # 缩短过渡时间的优化权重
+  weight_shortest_path: 2.0                   # 缩短路径长度的优化权重（增加以避免绕路）
+
+  # --- 障碍物权重 ---
+  weight_obstacle: 50.0                       # 与障碍物保持最小距离的优化权重
+  weight_inflation: 0.2                       # 膨胀惩罚的优化权重（应较小）
+  weight_dynamic_obstacle: 50.0               # 与动态障碍物保持最小距离的优化权重
+  weight_dynamic_obstacle_inflation: 0.2      # 动态障碍物膨胀惩罚的优化权重（应较小）
+  weight_velocity_obstacle_ratio: 0.0         # 根据障碍物距离限制速度的优化权重
+
+  # --- 途经点权重 ---
+  weight_viapoint: 1.0                        # 最小化到途经点距离的优化权重
+
+  # --- 其他权重 ---
+  weight_prefer_rotdir: 50.0                  # 优化偏好的旋转方向权重（当检测到振荡时激活）
+
+  # --- 权重自适应 ---
+  weight_adapt_factor: 2.0                    # 特殊权重（如 weight_obstacle）的迭代缩放因子
+  obstacle_cost_exponent: 1.0                 # 非线性障碍物代价指数，设为 1 禁用
+
+  # ============================================================================
+  # Homotopy Class Planner (同伦类规划器参数)
+  # ============================================================================
+
+  # 启用同伦类规划（需要更多计算资源）
+  enable_homotopy_class_planning: false       # 暂时禁用以避免生成绕路路径
+  enable_multithreading: true                 # 启用多线程并行规划
+  simple_exploration: false                   # 如果为 true，使用简单的左右探索方式，否则随机采样路线图
+
+  # 同伦类数量
+  max_number_classes: 2                       # 允许的最大备选同伦类数量（减少以避免过多备选路径）
+  max_number_plans_in_current_class: 2        # 同一同伦类中尝试的最大轨迹数
+
+  # 选择策略
+  selection_cost_hysteresis: 1.0              # 新候选轨迹的代价滞后因子
+  selection_prefer_initial_plan: 0.95         # 初始规划等价类的代价降低因子 (0,1)
+  selection_obst_cost_scale: 100.0            # 选择"最佳"候选时障碍物代价的额外缩放
+  selection_viapoint_cost_scale: 1.0          # 选择"最佳"候选时途经点代价的额外缩放
+  selection_alternative_time_cost: false      # 用总过渡时间替代时间代价
+  selection_dropping_probability: 0.0         # 随机丢弃非最佳 TEB 的概率 (0,1)
+
+  # 切换阻塞
+  switching_blocking_period: 0.0              # 切换到新等价类前需要的时间间隔 (s)
+
+  # 路线图生成
+  roadmap_graph_no_samples: 15                # 创建路线图的采样点数量
+  roadmap_graph_area_width: 6.0               # 采样区域宽度 (m)，阿克曼车需要更宽的采样区域
+  roadmap_graph_area_length_scale: 1.0        # 采样区域长度缩放因子
+
+  # H 签名
+  h_signature_prescaler: 1.0                  # 障碍物值的缩放因子 (0.2 < H <= 1)
+  h_signature_threshold: 0.1                  # H 签名相等的阈值
+
+  # 障碍物方向
+  obstacle_keypoint_offset: 0.1               # 如果 simple_exploration 启用，此参数决定障碍物左右两侧新关键点的距离
+  obstacle_heading_threshold: 0.45            # 考虑障碍物进行探索的方向阈值 [0,1]
+
+  # 途经点
+  viapoints_all_candidates: true              # 所有拓扑轨迹都附加到途经点集合
+
+  # 可视化
+  visualize_hc_graph: false                   # 可视化用于探索新同伦类的图
+
+  # Detours（绕路检测）
+  delete_detours_backwards: true              # 如果启用，规划器将丢弃相对于最佳规划向后绕路的规划
+  detours_orientation_tolerance: 1.57         # 如果规划的起始方向与最佳规划相差超过此值 (rad)，则认为是绕路
+  length_start_orientation_vector: 0.4        # 用于计算规划起始方向的向量长度 (m)
+  max_ratio_detours_duration_best_duration: 3.0  # 如果绕路执行时间/最佳 TEB 执行时间 > 此值，则丢弃绕路
+
+  # ============================================================================
+  # Recovery (恢复参数)
+  # ============================================================================
+
+  shrink_horizon_backup: true                 # 检测到问题时允许临时缩短视野（50%）
+  shrink_horizon_min_duration: 10.0           # 如果检测到不可行轨迹，缩短视野的最小持续时间 (s)
+
+  oscillation_recovery: true                  # 尝试检测并解决振荡
+  oscillation_v_eps: 0.1                      # 平均归一化线速度阈值，用于检测振荡
+  oscillation_omega_eps: 0.1                  # 平均归一化角速度阈值，用于检测振荡
+  oscillation_recovery_min_duration: 10.0     # 检测到振荡后激活恢复模式的最小持续时间 (s)
+  oscillation_filter_duration: 10.0           # 检测振荡的滤波器长度/持续时间 (s)
+
+  # 发散检测
+  divergence_detection_enable: false          # 启用发散检测
+  divergence_detection_max_chi_squared: 10    # 假定优化发散的最大马氏距离
+
+  # ============================================================================
+  # Footprint Model (机器人足迹模型)
+  # ============================================================================
+
+  footprint_model:
+    type: "polygon"                           # 多边形模型（最准确）
+    vertices: [[0.45, 0.30], [0.45, -0.30], [-0.45, -0.30], [-0.45, 0.30]]  # 与 costmap footprint 一致
+
+  # ============================================================================
+  # 其他参数
+  # ============================================================================
+  odom_topic: odom                            # 里程计话题
+  map_frame: map                              # 地图坐标系
