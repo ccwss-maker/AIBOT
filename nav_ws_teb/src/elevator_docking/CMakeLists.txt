@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   sensor_msgs
   geometry_msgs
+  nav_msgs
   visualization_msgs
   tf2
   tf2_ros
@@ -20,10 +21,26 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   pcl_conversions
   dynamic_reconfigure
+  actionlib_msgs
+  actionlib
+  message_generation
 )
 
 ## Find PCL
 find_package(PCL REQUIRED)
+
+## Generate actions
+add_action_files(
+  DIRECTORY action
+  FILES ElevatorDocking.action
+)
+
+## Generate added messages and services with any dependencies listed here
+generate_messages(
+  DEPENDENCIES
+  actionlib_msgs
+  std_msgs
+)
 
 ## Generate dynamic reconfigure parameters
 generate_dynamic_reconfigure_options(
@@ -36,12 +53,13 @@ generate_dynamic_reconfigure_options(
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES elevator_docking
-  CATKIN_DEPENDS 
-    roscpp 
-    rospy 
-    std_msgs 
-    sensor_msgs 
+  CATKIN_DEPENDS
+    roscpp
+    rospy
+    std_msgs
+    sensor_msgs
     geometry_msgs
+    nav_msgs
     visualization_msgs
     tf2
     tf2_ros
@@ -51,6 +69,9 @@ catkin_package(
     pcl_ros
     pcl_conversions
     dynamic_reconfigure
+    actionlib_msgs
+    actionlib
+    message_runtime
   DEPENDS PCL
 )
 
@@ -70,8 +91,8 @@ add_library(${PROJECT_NAME}
   src/elevator_detector.cpp
 )
 
-add_dependencies(${PROJECT_NAME} 
-  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+add_dependencies(${PROJECT_NAME}
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
 )
@@ -81,18 +102,38 @@ target_link_libraries(${PROJECT_NAME}
   ${PCL_LIBRARIES}
 )
 
-## Declare a C++ executable
-add_executable(${PROJECT_NAME}_node 
-  src/elevator_detector_node.cpp
+## Declare C++ library for docking server
+add_library(${PROJECT_NAME}_server
+  src/elevator_docking_server.cpp
 )
 
-add_dependencies(${PROJECT_NAME}_node 
-  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+add_dependencies(${PROJECT_NAME}_server
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_generate_messages_cpp
 )
 
-target_link_libraries(${PROJECT_NAME}_node
+target_link_libraries(${PROJECT_NAME}_server
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
+## Declare a C++ executable for docking server node
+add_executable(elevator_docking_server_node
+  src/elevator_docking_server_node.cpp
+)
+
+add_dependencies(elevator_docking_server_node
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
+  ${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_generate_messages_cpp
+)
+
+target_link_libraries(elevator_docking_server_node
+  ${PROJECT_NAME}_server
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
@@ -103,12 +144,12 @@ target_link_libraries(${PROJECT_NAME}_node
 #############
 
 ## Mark executables for installation
-install(TARGETS ${PROJECT_NAME}_node
+install(TARGETS elevator_docking_server_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 ## Mark libraries for installation
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_server
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}

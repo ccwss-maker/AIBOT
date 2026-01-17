@@ -42,6 +42,29 @@ ElevatorDetector::~ElevatorDetector()
 {
 }
 
+bool ElevatorDetector::getLastDetection(ElevatorDetectionResult& result) const
+{
+  if (!elevator_detected_) {
+    return false;
+  }
+  result = last_detection_;
+  return true;
+}
+
+bool ElevatorDetector::isElevatorDetected() const
+{
+  return elevator_detected_;
+}
+
+void ElevatorDetector::setDetectionEnabled(bool enable)
+{
+  enable_detection_ = enable;
+  if (!enable) {
+    elevator_detected_ = false;
+  }
+  ROS_INFO("Detection %s", enable ? "enabled" : "disabled");
+}
+
 void ElevatorDetector::loadParameters()
 {
   // ============================================================================
@@ -72,7 +95,7 @@ void ElevatorDetector::loadParameters()
   // ============================================================================
   // 电梯检测参数（enable_detection_是内部控制，默认false）
   // ============================================================================
-  enable_detection_ = true;  // 内部控制参数
+  enable_detection_ = false;  // 默认关闭,由action server控制
   private_nh_.param<double>("min_door_width", min_door_width_, 0.8);
   private_nh_.param<double>("max_door_width", max_door_width_, 1.5);
   private_nh_.param<double>("min_door_depth", min_door_depth_, 1.0);
@@ -307,6 +330,8 @@ void ElevatorDetector::laserScanCallback(const sensor_msgs::LaserScan::ConstPtr&
       elevator_detected_ = false;
     }
   }
+
+  
 }
 
 bool ElevatorDetector::transformPointCloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_in,
@@ -402,10 +427,10 @@ bool ElevatorDetector::detectElevator(const pcl::PointCloud<pcl::PointXYZ>::Ptr&
     publishMergedLineMarkers(merged_lines);
   }
 
-  // 步骤3: 连接平行线组形成U形结构（阶段5）
+  // 步骤3: 连接平行线组形成矩形结构（阶段5）
   std::vector<std::pair<pcl::PointXYZ, pcl::PointXYZ>> connected_lines;
   if (!connectParallelGroups(merged_lines, connected_lines)) {
-    ROS_WARN_THROTTLE(2.0, "Failed to connect parallel groups into U-shape");
+    ROS_WARN_THROTTLE(2.0, "Failed to connect parallel groups into rectangle");
     return false;
   }
 
@@ -414,17 +439,19 @@ bool ElevatorDetector::detectElevator(const pcl::PointCloud<pcl::PointXYZ>::Ptr&
     publishConnectedLineMarkers(connected_lines);
   }
 
-  // // 步骤4: 从直线段识别电梯凹槽
-  // if (!recognizeElevatorFromLines(lines, result)) {
-  //   return false;
-  // }
+  // 步骤4: 从4条线段组成的矩形识别电梯参数
+  if (!recognizeElevatorFromRectangle(connected_lines, result)) {
+    ROS_WARN_THROTTLE(2.0, "Failed to recognize elevator from rectangle");
+    return false;
+  }
 
-  // // 步骤3: 验证检测结果
-  // if (!validateElevatorResult(result)) {
-  //   return false;
-  // }
-  return false;
-  // return true;
+  // 步骤5: 验证检测结果
+  if (!validateElevatorResult(result)) {
+    ROS_WARN_THROTTLE(2.0, "Elevator validation failed");
+    return false;
+  }
+
+  return true;
 }
 
 void ElevatorDetector::publishFilteredPointCloud()
@@ -1077,7 +1104,7 @@ void ElevatorDetector::publishMergedLineMarkers(const std::vector<std::pair<pcl:
 }
 
 // ==============================================================================
-// 阶段5: 连接平行线组形成电梯U形结构
+// 阶段5: 连接平行线组形成电梯矩形结构
 // ==============================================================================
 bool ElevatorDetector::connectParallelGroups(const std::vector<std::pair<pcl::PointXYZ, pcl::PointXYZ>>& merged_lines,
                                              std::vector<std::pair<pcl::PointXYZ, pcl::PointXYZ>>& connected_lines)
@@ -1124,19 +1151,43 @@ bool ElevatorDetector::connectParallelGroups(const std::vector<std::pair<pcl::Po
   //   ROS_INFO("  Group %zu: %zu lines", i, groups[i].size());
   // }
 
-  // 步骤2: 验证必须是2组，每组2条线
+  // 步骤2: 验证组数和每组的线条数
+  if (groups.size() < 2) {
+    ROS_ERROR("Expected at least 2 parallel groups, but found %zu groups. Cannot form rectangle.", groups.size());
+    return false;
+  }
+
+  // 如果有超过2组，过滤掉不是2条线的组
+  if (groups.size() > 2) {
+    std::vector<std::vector<int>> filtered_groups;
+    for (size_t i = 0; i < groups.size(); ++i) {
+      if (groups[i].size() == 2) {
+        filtered_groups.push_back(groups[i]);
+      } else {
+        ROS_DEBUG("Removing group %zu: has %zu lines (expected 2)", i, groups[i].size());
+      }
+    }
+    groups = filtered_groups;
+    
+    ROS_INFO("After size filtering: %zu groups remaining", groups.size());
+    for (size_t i = 0; i < groups.size(); ++i) {
+      ROS_INFO("  Group %zu: %zu lines", i, groups[i].size());
+    }
+  }
+
+  // 最终验证：必须是2组，每组2条线
   if (groups.size() != 2) {
-    ROS_ERROR("Expected 2 parallel groups, but found %zu groups. Cannot form U-shape.", groups.size());
+    ROS_ERROR("After filtering, expected 2 parallel groups, but found %zu groups. Cannot form rectangle.", groups.size());
     return false;
   }
 
   if (groups[0].size() != 2 || groups[1].size() != 2) {
-    ROS_ERROR("Expected 2 lines per group, but found group0=%zu lines, group1=%zu lines. Cannot form U-shape.",
+    ROS_ERROR("After filtering, expected 2 lines per group, but found group0=%zu lines, group1=%zu lines. Cannot form rectangle.",
               groups[0].size(), groups[1].size());
     return false;
   }
 
-  ROS_INFO("Valid U-shape structure detected: 2 groups with 2 lines each");
+  ROS_INFO("Valid rectangle structure detected: 2 groups with 2 lines each");
 
   // 步骤3: 对于每组的每条线，与另一组的线求交点
   for (size_t group_idx = 0; group_idx < 2; ++group_idx) {
@@ -1285,6 +1336,113 @@ void ElevatorDetector::publishConnectedLineMarkers(const std::vector<std::pair<p
   }
 
   connected_line_markers_pub_.publish(line_list);
+}
+
+// ==============================================================================
+// 阶段6: 从4条线段组成的矩形识别电梯参数
+// ==============================================================================
+bool ElevatorDetector::recognizeElevatorFromRectangle(const std::vector<std::pair<pcl::PointXYZ, pcl::PointXYZ>>& rectangle_lines,
+                                                      ElevatorDetectionResult& result)
+{
+  if (rectangle_lines.size() != 4) {
+    ROS_ERROR("Expected 4 lines for rectangle, but got %zu lines", rectangle_lines.size());
+    return false;
+  }
+
+  ROS_DEBUG("Recognizing elevator from 4 rectangle lines");
+
+  // 步骤1: 将4条线分为2组平行线（通过角度相似性）
+  std::vector<int> group1, group2;
+  group1.push_back(0);
+
+  // 找到与第0条线平行的线
+  for (size_t i = 1; i < 4; ++i) {
+    double angle_diff = computeAngleBetweenLines(rectangle_lines[0], rectangle_lines[i]);
+    if (angle_diff <= parallel_angle_threshold_) {
+      group1.push_back(i);
+    } else {
+      group2.push_back(i);
+    }
+  }
+
+  // 验证分组（应该是2条平行线一组）
+  if (group1.size() != 2 || group2.size() != 2) {
+    ROS_ERROR("Failed to group lines into 2 parallel pairs: group1=%zu, group2=%zu", 
+              group1.size(), group2.size());
+    return false;
+  }
+
+  ROS_DEBUG("Lines grouped: group1=[%d,%d], group2=[%d,%d]", 
+            group1[0], group1[1], group2[0], group2[1]);
+
+  // 步骤2: 计算每条线的中点
+  auto computeLineMidpoint = [](const std::pair<pcl::PointXYZ, pcl::PointXYZ>& line) -> pcl::PointXYZ {
+    pcl::PointXYZ mid;
+    mid.x = (line.first.x + line.second.x) / 2.0;
+    mid.y = (line.first.y + line.second.y) / 2.0;
+    mid.z = (line.first.z + line.second.z) / 2.0;
+    return mid;
+  };
+
+  pcl::PointXYZ mid1_a = computeLineMidpoint(rectangle_lines[group1[0]]);
+  pcl::PointXYZ mid1_b = computeLineMidpoint(rectangle_lines[group1[1]]);
+  pcl::PointXYZ mid2_a = computeLineMidpoint(rectangle_lines[group2[0]]);
+  pcl::PointXYZ mid2_b = computeLineMidpoint(rectangle_lines[group2[1]]);
+
+  // 步骤3: 计算矩形中心（4个中点的平均值）
+  result.x = (mid1_a.x + mid1_b.x + mid2_a.x + mid2_b.x) / 4.0;
+  result.y = (mid1_a.y + mid1_b.y + mid2_a.y + mid2_b.y) / 4.0;
+
+  // 步骤4: 计算每组的平均长度
+  auto computeLineLength = [](const std::pair<pcl::PointXYZ, pcl::PointXYZ>& line) -> double {
+    double dx = line.second.x - line.first.x;
+    double dy = line.second.y - line.first.y;
+    return std::sqrt(dx * dx + dy * dy);
+  };
+
+  double length1_a = computeLineLength(rectangle_lines[group1[0]]);
+  double length1_b = computeLineLength(rectangle_lines[group1[1]]);
+  double length2_a = computeLineLength(rectangle_lines[group2[0]]);
+  double length2_b = computeLineLength(rectangle_lines[group2[1]]);
+
+  double avg_length1 = (length1_a + length1_b) / 2.0;
+  double avg_length2 = (length2_a + length2_b) / 2.0;
+
+  ROS_DEBUG("Group1 avg length: %.2fm, Group2 avg length: %.2fm", avg_length1, avg_length2);
+
+  // 步骤5: 确定哪组是宽度（width），哪组是深度（depth）
+  // width是较短的边（电梯门宽度），depth是较长的边（电梯进深）
+  int width_group_idx, depth_group_idx;
+  if (avg_length1 < avg_length2) {
+    result.width = avg_length1;
+    result.depth = avg_length2;
+    width_group_idx = group1[0];
+    depth_group_idx = group2[0];
+  } else {
+    result.width = avg_length2;
+    result.depth = avg_length1;
+    width_group_idx = group2[0];
+    depth_group_idx = group1[0];
+  }
+
+  // 步骤6: 计算yaw角度（使用深度方向的线段，代表电梯朝向）
+  const auto& depth_line = rectangle_lines[depth_group_idx];
+  double dx = depth_line.second.x - depth_line.first.x;
+  double dy = depth_line.second.y - depth_line.first.y;
+  result.angle = std::atan2(dy, dx);
+
+  // 步骤7: 设置置信度（基于矩形的规整程度）
+  // 检查对边长度的一致性
+  double length_diff1 = std::abs(length1_a - length1_b) / avg_length1;
+  double length_diff2 = std::abs(length2_a - length2_b) / avg_length2;
+  double consistency_score = 1.0 - (length_diff1 + length_diff2) / 2.0;
+  result.confidence = std::max(0.0, std::min(1.0, consistency_score));
+
+  ROS_INFO("Elevator recognized: center=(%.2f, %.2f), size=(%.2fx%.2f), yaw=%.1f deg, confidence=%.2f",
+           result.x, result.y, result.width, result.depth,
+           result.angle * 180.0 / M_PI, result.confidence);
+
+  return true;
 }
 
 } // namespace elevator_docking

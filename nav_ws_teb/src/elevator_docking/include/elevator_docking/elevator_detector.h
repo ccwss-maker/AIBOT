@@ -70,7 +70,26 @@ public:
    * @brief 析构函数
    */
   ~ElevatorDetector();
-  
+
+  /**
+   * @brief 获取最近的检测结果
+   * @param result 输出检测结果
+   * @return 是否有有效检测结果
+   */
+  bool getLastDetection(ElevatorDetectionResult& result) const;
+
+  /**
+   * @brief 检查是否检测到电梯
+   * @return 是否检测到
+   */
+  bool isElevatorDetected() const;
+
+  /**
+   * @brief 启用或禁用检测
+   * @param enable true启用, false禁用
+   */
+  void setDetectionEnabled(bool enable);
+
 private:
   /**
    * @brief 加载参数
@@ -224,6 +243,15 @@ private:
    * @param lines 连接后的线段集合
    */
   void publishConnectedLineMarkers(const std::vector<std::pair<pcl::PointXYZ, pcl::PointXYZ>>& lines);
+
+  /**
+   * @brief 阶段6: 从4条线段组成的矩形识别电梯参数
+   * @param rectangle_lines 组成矩形的4条线段
+   * @param result 识别结果（x, y, yaw, width, height）
+   * @return 是否成功识别
+   */
+  bool recognizeElevatorFromRectangle(const std::vector<std::pair<pcl::PointXYZ, pcl::PointXYZ>>& rectangle_lines,
+                                      ElevatorDetectionResult& result);
 
   /**
    * @brief 从检测到的直线段中识别电梯凹槽

@@ -1,0 +1,21 @@
+# Goal
+string command  # "detection", "in", "out"
+
+---
+
+# Result
+bool success
+string message
+# Detection result (only valid when command is "detection")
+float64 center_x
+float64 center_y
+float64 width
+float64 depth
+float64 yaw_deg
+float64 confidence
+
+---
+
+# Feedback
+string status
+float64 progress

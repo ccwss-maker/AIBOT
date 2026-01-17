@@ -1,0 +1,14 @@
+<launch>
+  <group ns="robot1">
+
+    <!-- Odometry zero node (odom.py) -->
+    <node pkg="elevator_docking" type="odom.py" name="odom_zero_node" output="screen"/>
+
+    <!-- Elevator Docking Action Server -->
+    <node pkg="elevator_docking" type="elevator_docking_server_node" name="elevator_docking_server" output="screen">
+      <!-- Load all configuration from YAML file -->
+      <rosparam file= "$(find elevator_docking)/config/elevator_docking.yaml" command="load" ns="" />
+    </node>
+
+  </group>
+</launch>

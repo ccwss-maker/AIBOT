@@ -15,7 +15,14 @@
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>visualization_msgs</depend>
+
+  <!-- Action and message dependencies -->
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
   
   <!-- TF for coordinate transformations -->
   <depend>tf2</depend>
