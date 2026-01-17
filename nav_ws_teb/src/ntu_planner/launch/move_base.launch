@@ -10,6 +10,9 @@
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_global.yaml" command="load" ns="global_costmap" />
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_local.yaml" command="load" ns="local_costmap" />
         
+        <!-- Global Planner 配置 -->
+        <rosparam file="$(find ntu_planner)/config/global_planner_params.yaml" command="load" ns="global_planner" />
+        
         <!-- TEB Local Planner 配置 -->
         <rosparam file="$(find ntu_planner)/config/teb_local_planner_params_ackermann.yaml" command="load" ns="local_planner" />
         <rosparam file="$(find ntu_planner)/config/teb_local_planner_params_omnidirectional.yaml" command="load" ns="local_planner" />
@@ -38,7 +41,7 @@
       <!-- MBF Legacy Relay: 使 MBF 兼容 move_base 的 simple goal 话题 -->
       <node pkg="mbf_costmap_nav" type="move_base_legacy_relay.py" name="move_base_legacy_relay" output="screen">
         <!-- 设置默认的全局规划器和局部控制器 -->
-        <param name="base_global_planner" value="navfn/NavfnROS"/>
+        <param name="base_global_planner" value="global_planner/GlobalPlanner"/>
         <param name="base_local_planner" value="local_planner/TebLocalPlannerROS_Omnidirectiona"/>
       </node>
 
