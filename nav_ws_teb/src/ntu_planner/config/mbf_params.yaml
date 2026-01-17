@@ -10,21 +10,21 @@ global_frame: map                # 全局坐标系，默认: map
 # ============================================================================
 # 规划器 (Planner) 配置
 # ============================================================================
-planner_frequency: 0.0           # 规划器调用频率 (Hz)，0 表示仅调用一次，默认: 0
+planner_frequency: 1.0           # 规划器调用频率 (Hz)，0 表示仅调用一次，默认: 0
 planner_patience: 5.0            # 规划器超时时间 (秒)，默认: 5.0
-planner_max_retries: -1          # 规划器最大重试次数，-1 表示无限重试，默认: -1
+planner_max_retries: 3           # 规划器最大重试次数，-1 表示无限重试，默认: -1
 
 # ============================================================================
 # 控制器 (Controller) 配置
 # ============================================================================
-controller_frequency: 5.0        # 控制器调用频率 (Hz)
+controller_frequency: 10.0       # 控制器调用频率 (Hz)
 controller_patience: 5.0         # 控制器超时时间 (秒)，默认: 5.0
-controller_max_retries: -1       # 控制器最大重试次数，-1 表示无限重试，默认: -1
+controller_max_retries: 3        # 控制器在单次控制周期内失败后的重试次数（NOT与recovery相关）
 
 # ============================================================================
 # 恢复行为 (Recovery) 配置
 # ============================================================================
-recovery_enabled: false          # 是否启用恢复行为，默认: true
+recovery_enabled: true           # 是否启用恢复行为，默认: true
 recovery_patience: 15.0          # 恢复行为超时时间 (秒)，默认: 15.0
 
 # ============================================================================
@@ -57,13 +57,31 @@ controllers:
   #   type: ntu_planner/NTUController
   
   # # 也可以保留 DWA 作为备选
-  # - name: dwa_local_planner/DWAPlannerROS
+  # - name: local_planner/DWAPlannerROS
   #   type: dwa_local_planner/DWAPlannerROS
+  - name: local_planner/TebLocalPlannerROS_Ackermann
+    type: teb_local_planner/TebLocalPlannerROS
 
-  - name: teb_local_planner/TebLocalPlannerROS
+  - name: local_planner/TebLocalPlannerROS_Omnidirectiona
     type: teb_local_planner/TebLocalPlannerROS
 
 # ============================================================================
 # 恢复行为插件配置
+# 当规划器或控制器失败时，按顺序执行这些恢复行为
 # ============================================================================
-recovery_behaviors: []
+recovery_behaviors:
+  # 1. 清除局部代价地图中的障碍物（可能是传感器噪声）
+  - name: clear_costmap_local
+    type: clear_costmap_recovery/ClearCostmapRecovery
+  
+  # 2. 原地旋转360度，重新扫描环境
+  - name: rotate_recovery
+    type: rotate_recovery/RotateRecovery
+  
+  # 3. 清除全局和局部代价地图
+  - name: clear_costmap_global
+    type: clear_costmap_recovery/ClearCostmapRecovery
+  
+  # # 4. 更激进的恢复：缓慢移动同时清除障碍物
+  # - name: move_slow_and_clear
+  #   type: move_slow_and_clear/MoveSlowAndClear

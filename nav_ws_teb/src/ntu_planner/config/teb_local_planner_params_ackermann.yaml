@@ -3,7 +3,7 @@
 # 基于 teb_local_planner 源代码的完整参数配置
 # 参考源文件: TebLocalPlannerReconfigure.cfg 和 teb_config.h
 
-TebLocalPlannerROS:
+TebLocalPlannerROS_Ackermann:
 
   # ============================================================================
   # Trajectory (轨迹相关参数)
@@ -99,8 +99,8 @@ TebLocalPlannerROS:
   # ============================================================================
 
   # 基本障碍物距离（阿克曼车辆需要更大的安全距离）
-  min_obstacle_dist: 0.3                      # 与障碍物的最小期望距离 (m)
-  inflation_dist: 0.1                         # 障碍物周围的缓冲区 (m)，应大于 min_obstacle_dist
+  min_obstacle_dist: 0.05                      # 与障碍物的最小期望距离 (m)
+  inflation_dist: 0.0                         # 障碍物周围的缓冲区 (m)，应大于 min_obstacle_dist
   dynamic_obstacle_inflation_dist: 0.6        # 动态障碍物预测位置周围的缓冲区 (m)
 
   # 动态障碍物

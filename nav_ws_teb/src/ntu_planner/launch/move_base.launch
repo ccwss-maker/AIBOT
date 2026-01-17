@@ -11,9 +11,27 @@
         <rosparam file="$(find ntu_planner)/config/costmap_common_params_local.yaml" command="load" ns="local_costmap" />
         
         <!-- TEB Local Planner 配置 -->
-        <rosparam file="$(find ntu_planner)/config/teb_local_planner_params_ackermann.yaml" command="load" ns="teb_local_planner" />
+        <rosparam file="$(find ntu_planner)/config/teb_local_planner_params_ackermann.yaml" command="load" ns="local_planner" />
+        <rosparam file="$(find ntu_planner)/config/teb_local_planner_params_omnidirectional.yaml" command="load" ns="local_planner" />
         
-        <param name="recovery_enabled" value="false"/>
+        <!-- Recovery Behaviors 配置 -->
+        <rosparam ns="clear_costmap_local">
+          reset_distance: 5.0       # 清除局部代价地图的范围（米）
+          affected_maps: local      # 影响的地图: local, global, both
+        </rosparam>
+        
+        <rosparam ns="rotate_recovery">
+          sim_granularity: 0.017    # 仿真粒度（弧度），约1度
+          frequency: 20.0           # 控制频率（Hz）
+          angular_speed: 0.1        # 降低角速度（默认0.4）
+          max_rotational_vel: 0.1   # 限制最大速度
+        </rosparam>
+        
+        <rosparam ns="clear_costmap_global">
+          reset_distance: 5.0       # 清除全局代价地图的范围（米）
+          affected_maps: both       # 同时清除全局和局部
+        </rosparam>
+        
         <remap from="cmd_vel" to="/base_cmd_vel"/>
       </node>
 
@@ -21,7 +39,7 @@
       <node pkg="mbf_costmap_nav" type="move_base_legacy_relay.py" name="move_base_legacy_relay" output="screen">
         <!-- 设置默认的全局规划器和局部控制器 -->
         <param name="base_global_planner" value="navfn/NavfnROS"/>
-        <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS"/>
+        <param name="base_local_planner" value="local_planner/TebLocalPlannerROS_Omnidirectiona"/>
       </node>
 
       <node pkg="pointcloud_to_laserscan" type="pointcloud_to_laserscan_node" name="pointcloud_to_laserscan">

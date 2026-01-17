@@ -2,7 +2,7 @@
 # 基于 teb_local_planner 源代码的完整参数配置
 # 参考源文件: TebLocalPlannerReconfigure.cfg 和 teb_config.h
 
-TebLocalPlannerROS:
+TebLocalPlannerROS_Omnidirectiona:
 
   # ============================================================================
   # Trajectory (轨迹相关参数)
@@ -57,11 +57,11 @@ TebLocalPlannerROS:
   # 速度限制（大型全向轮机器人）
   max_vel_x: 0.5                              # X 方向最大速度 (m/s)
   max_vel_x_backwards: 0.3                    # 倒车最大速度 (m/s)
-  max_vel_theta: 0.2                          # 最大角速度 (rad/s)，降低以减少轮子角度变化速度
+  max_vel_theta: 0.5                          # 最大角速度 (rad/s)，降低以减少轮子角度变化速度
 
   # 加速度限制（大型机器人需要较小的加速度）
-  acc_lim_x: 0.15                             # X 方向最大加速度 (m/s^2)，适中的加速度
-  acc_lim_theta: 0.05                         # 最大角加速度 (rad/s^2)，大幅降低以减少轮子角度突变
+  acc_lim_x: 0.1                             # X 方向最大加速度 (m/s^2)，适中的加速度
+  acc_lim_theta: 0.1                         # 最大角加速度 (rad/s^2)，大幅降低以减少轮子角度突变
 
   # 机器人足迹
   is_footprint_dynamic: false                 # 检查轨迹可行性前是否更新足迹
@@ -80,7 +80,7 @@ TebLocalPlannerROS:
   # --- 全向移动机器人参数（已启用全向轮） ---
   max_vel_y: 0.5                              # Y 方向最大速度 (m/s)，全向机器人启用
   max_vel_trans: 0.5                          # 最大平移速度 (m/s)，限制 x 和 y 的线性组合
-  acc_lim_y: 0.15                             # Y 方向最大加速度 (m/s^2)，适中的侧向加速度
+  acc_lim_y: 0.1                             # Y 方向最大加速度 (m/s^2)，适中的侧向加速度
 
   # ============================================================================
   # GoalTolerance (目标容差参数)
@@ -98,8 +98,8 @@ TebLocalPlannerROS:
   # ============================================================================
 
   # 基本障碍物距离（大车需要更大的安全距离）
-  min_obstacle_dist: 0.3                      # 与障碍物的最小期望距离 (m)
-  inflation_dist: 0.1                         # 障碍物周围的缓冲区 (m)，应大于 min_obstacle_dist
+  min_obstacle_dist: 0.05                     # 与障碍物的最小期望距离 (m)
+  inflation_dist: 0.0                         # 障碍物周围的缓冲区 (m)，应大于 min_obstacle_dist
   dynamic_obstacle_inflation_dist: 0.3        # 动态障碍物预测位置周围的缓冲区 (m)
 
   # 动态障碍物
