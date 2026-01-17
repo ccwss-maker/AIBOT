@@ -1,0 +1,85 @@
+# ==============================================================================
+# Elevator Docking Configuration
+# 电梯检测与对接配置文件
+# ==============================================================================
+
+# ==============================================================================
+# 坐标系配置
+# ==============================================================================
+robot_base_frame: local_map          # 机器人坐标系，默认: base_link
+
+# ==============================================================================
+# 地图配置
+# ==============================================================================
+map_width: 5.0                       # 地图宽度 (米)，默认: 10.0
+map_height: 2.0                      # 地图高度 (米)，默认: 10.0
+
+# ==============================================================================
+# 传感器配置 (必须是LaserScan类型)
+# ==============================================================================
+observation_sources: vanjee_front_sensor vanjee_back_sensor
+
+# 前置雷达传感器
+vanjee_front_sensor:
+  topic: /front_filtered_points
+  sensor_frame: vanjee_lidar_front
+
+# 后置雷达传感器
+vanjee_back_sensor:
+  topic: /back_filtered_points
+  sensor_frame: vanjee_lidar_back
+
+# ==============================================================================
+# 发布话题配置
+# ==============================================================================
+publish_filtered_points: true        # 是否发布过滤后的点云
+filtered_points_topic: /elevator/filtered_points  # 过滤后点云话题
+
+publish_line_markers: true           # 是否发布检测到的直线段标记
+line_markers_topic: /elevator/line_markers  # 直线段标记话题
+
+publish_merged_line_markers: true    # 是否发布合并后的线段标记
+merged_line_markers_topic: /elevator/merged_line_markers  # 合并后线段标记话题
+
+publish_connected_line_markers: true # 是否发布连接后的线段标记
+connected_line_markers_topic: /elevator/connected_line_markers  # 连接后线段标记话题
+
+publish_elevator_marker: true       # 是否发布电梯矩形标记
+elevator_marker_topic: /elevator/marker  # 电梯标记话题
+
+# ==============================================================================
+# 电梯检测参数
+# ==============================================================================
+# 电梯门尺寸约束
+min_door_width: 0.8                  # 电梯门最小宽度 (米)
+max_door_width: 1.5                  # 电梯门最大宽度 (米)
+min_door_depth: 1.0                  # 电梯门最小深度 (米)
+max_door_depth: 2.5                  # 电梯门最大深度 (米)
+
+# 点云聚类参数（阶段1: 预过滤）
+cluster_tolerance: 0.1               # 欧氏聚类距离阈值 (米)，通常0.05-0.15
+min_cluster_size: 5                  # 最小簇点数，过滤小簇噪声
+max_cluster_size: 10000              # 最大簇点数，避免异常大簇
+
+# 直线检测参数（阶段2: RANSAC检测）
+ransac_distance_threshold: 0.05      # RANSAC距离阈值 (米)
+min_line_points: 10                  # 直线最少点数
+line_gap_threshold: 0.2              # 线段间隙阈值 (米)，用于拆分共线但有间隙的线段
+
+# 线段过滤参数（阶段3: 长度过滤）
+min_line_length: 0.1                 # 最短直线长度 (米)
+max_line_length: 2.0                 # 最长直线长度 (米)
+
+# 平行线合并参数（阶段4: 平行线分组与合并）
+merge_angle_threshold: 10.0           # 平行线合并角度阈值 (度)，方向差<此值认为平行
+merge_distance_threshold: 0.2       # 平行线合并法向距离阈值 (米)，距离<此值则合并
+
+# 电梯识别参数
+parallel_angle_threshold: 10.0       # 平行判断角度阈值 (度)
+perpendicular_angle_threshold: 10.0  # 垂直判断角度阈值 (度)
+
+# ==============================================================================
+# 可视化配置
+# ==============================================================================
+marker_lifetime: 0.5                 # 标记生存时间 (秒)
+marker_scale: 0.05                   # 标记线条粗细 (米)

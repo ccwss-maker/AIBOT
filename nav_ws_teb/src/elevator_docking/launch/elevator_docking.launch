@@ -1,0 +1,17 @@
+<launch>
+  <group ns="robot1">
+    <!-- Elevator Docking Launch File -->
+    
+    <arg name="config_file" default="$(find elevator_docking)/config/elevator_docking.yaml" />
+    
+    <node pkg="elevator_docking" type="elevator_docking_node" name="elevator_detector" output="screen">
+      <!-- 加载配置文件 -->
+      <rosparam command="load" file="$(arg config_file)" />
+    </node>
+    
+    <!-- 可选：启动rviz可视化 -->
+    <arg name="rviz" default="false" />
+    <node if="$(arg rviz)" pkg="rviz" type="rviz" name="elevator_rviz" 
+          args="-d $(find elevator_docking)/rviz/elevator_docking.rviz" />
+  </group>
+</launch>
