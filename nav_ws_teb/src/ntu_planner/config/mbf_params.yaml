@@ -10,16 +10,16 @@ global_frame: map                # 全局坐标系，默认: map
 # ============================================================================
 # 规划器 (Planner) 配置
 # ============================================================================
-planner_frequency: 0.0           # 规划器调用频率 (Hz)，0 表示仅调用一次，默认: 0
+planner_frequency: 1.0           # 规划器调用频率 (Hz)，0 表示仅调用一次，默认: 0
 planner_patience: 5.0            # 规划器超时时间 (秒)，默认: 5.0
-planner_max_retries: -1          # 规划器最大重试次数，-1 表示无限重试，默认: -1
+planner_max_retries: 3           # 规划器最大重试次数，-1 表示无限重试，默认: -1
 
 # ============================================================================
 # 控制器 (Controller) 配置
 # ============================================================================
-controller_frequency: 20.0       # 控制器调用频率 (Hz)，默认: 20
+controller_frequency: 10.0       # 控制器调用频率 (Hz)
 controller_patience: 5.0         # 控制器超时时间 (秒)，默认: 5.0
-controller_max_retries: -1       # 控制器最大重试次数，-1 表示无限重试，默认: -1
+controller_max_retries: 3        # 控制器在单次控制周期内失败后的重试次数（NOT与recovery相关）
 
 # ============================================================================
 # 恢复行为 (Recovery) 配置
@@ -44,8 +44,8 @@ shutdown_costmaps_delay: 1.0     # 关闭costmap前的延迟时间 (秒)，默�
 # 必须是数组格式，每个元素包含 name 和 type 字段
 # ============================================================================
 planners:
-  - name: navfn/NavfnROS
-    type: navfn/NavfnROS
+  - name: global_planner/GlobalPlanner
+    type: global_planner/GlobalPlanner
 
 # ============================================================================
 # 插件配置 - Controllers (局部控制器/跟踪器)
@@ -53,7 +53,7 @@ planners:
 # ============================================================================
 controllers:
   # 使用 NTU Controller
-  - name: ntu_planner/NTUController
+  - name: local_planner/NTUController
     type: ntu_planner/NTUController
   
   # 也可以保留 DWA 作为备选
@@ -63,4 +63,15 @@ controllers:
 # ============================================================================
 # 恢复行为插件配置
 # ============================================================================
-recovery_behaviors: []
+recovery_behaviors:
+  # 1. 清除局部代价地图中的障碍物（可能是传感器噪声）
+  - name: clear_costmap_local
+    type: clear_costmap_recovery/ClearCostmapRecovery
+  
+  # 2. 原地旋转360度，重新扫描环境
+  - name: rotate_recovery
+    type: rotate_recovery/RotateRecovery
+  
+  # 3. 清除全局和局部代价地图
+  - name: clear_costmap_global
+    type: clear_costmap_recovery/ClearCostmapRecovery

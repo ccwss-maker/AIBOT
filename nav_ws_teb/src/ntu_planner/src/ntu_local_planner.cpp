@@ -181,17 +181,6 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
   global_plan_ = plan;
   current_waypoint_idx_ = 0;
   goal_reached_ = false;
-
-  // 计算航向角
-  for (size_t i = 0; i < global_plan_.size() - 1; i++)
-  {
-    double dx = global_plan_[i + 1].pose.position.x - global_plan_[i].pose.position.x;
-    double dy = global_plan_[i + 1].pose.position.y - global_plan_[i].pose.position.y;
-    double yaw = std::atan2(dy, dx);
-    tf2::Quaternion q;
-    q.setRPY(0, 0, yaw);
-    global_plan_[i].pose.orientation = tf2::toMsg(q);
-  }
   
   // //DEBUG 打印航向角
   // for (size_t i = 0; i < global_plan_.size(); i++)
@@ -240,13 +229,13 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
   if (optimization_success_)
   {
     ROS_INFO("Trajectory optimization successful! Generated %ld optimized points", optimized_points_.cols());
-    // //DEBUG 打印航向角
-    // for (size_t i = 0; i < optimized_points_.cols(); i++)
-    // {
-    //   double yaw = optimized_points_(2, i);
-    //   ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
-    //            i, optimized_points_(0, i), optimized_points_(1, i), yaw, yaw * 180.0 / M_PI);
-    // }
+    //DEBUG 打印航向角
+    for (size_t i = 0; i < optimized_points_.cols(); i++)
+    {
+      double yaw = optimized_points_(2, i);
+      ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
+               i, optimized_points_(0, i), optimized_points_(1, i), yaw, yaw * 180.0 / M_PI);
+    }
     // 进行SDF优化（使用第一次优化的结果）
     ROS_INFO("Starting SDF optimization...");
 
@@ -290,23 +279,23 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
     ROS_INFO("Extracted %zu obstacle points from costmap", obstacle_list.size());
 
     // DEBUG: 打印前几个障碍物点坐标
-    if (obstacle_list.size() > 0)
-    {
-      size_t num_to_print = std::min(size_t(10), obstacle_list.size());
-      ROS_INFO("First %zu obstacle points:", num_to_print);
-      for (size_t i = 0; i < obstacle_list.size(); ++i)
-      {
-        if(obstacle_list[i].x() > 2.5 && obstacle_list[i].x() < 3.5 && obstacle_list[i].y() > -2.5 && obstacle_list[i].y() < -1.5)
-        ROS_INFO("  [%zu]: (%.3f, %.3f)", i, obstacle_list[i].x(), obstacle_list[i].y());
+    // if (obstacle_list.size() > 0)
+    // {
+    //   // size_t num_to_print = std::min(size_t(10), obstacle_list.size());
+    //   // ROS_INFO("Obstacle points:", num_to_print);
+    //   for (size_t i = 0; i < obstacle_list.size(); ++i)
+    //   {
+    //     // if(obstacle_list[i].x() > 2.5 && obstacle_list[i].x() < 3.5 && obstacle_list[i].y() > -2.5 && obstacle_list[i].y() < -1.5)
+    //     ROS_INFO("  [%zu]: (%.3f, %.3f)", i, obstacle_list[i].x(), obstacle_list[i].y());
 
-      }
-    }
+    //   }
+    // }
     // Eigen::Matrix3Xd obstacle_points(3, 4);
-    obstacle_points.col(0) << 2.850, -2.050, 0.0;
-    // obstacle_points.col(0) << 3.0, -2.0, 0.0;
-    obstacle_points.col(1) << 2.850, -1.950, 0.0;
-    obstacle_points.col(2) << 2.950, -2.050, 0.0;
-    obstacle_points.col(3) << 2.950, -2.950, 0.0;
+    // obstacle_points.col(0) << 2.850, -2.050, 0.0;
+    // // obstacle_points.col(0) << 3.0, -2.0, 0.0;
+    // obstacle_points.col(1) << 2.850, -1.950, 0.0;
+    // obstacle_points.col(2) << 2.950, -2.050, 0.0;
+    // obstacle_points.col(3) << 2.950, -2.950, 0.0;
 
 
 
@@ -324,6 +313,14 @@ bool NTUController::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan)
     if (sdf_optimization_success_)
     {
       ROS_INFO("SDF optimization successful! Generated %ld SDF optimized points", sdf_optimized_points_.cols());
+      //DEBUG 打印航向角
+      for (size_t i = 0; i < sdf_optimized_points_.cols(); i++)
+      {
+        double yaw = sdf_optimized_points_(2, i);
+        ROS_INFO("Global plan point %zu: pos=(%.3f, %.3f), yaw=%.3f rad (%.1f deg)", 
+                i, sdf_optimized_points_(0, i), sdf_optimized_points_(1, i), yaw, yaw * 180.0 / M_PI);
+      }
+
     }
     else
     {

@@ -49,7 +49,7 @@ NTUController:
     tol: 1.0e-6                           # 容差
     max_iter: 1000                        # 最大迭代次数
 
-    sdf_safety_hor: 1.0                   # 安全距离
+    sdf_safety_hor: 0.05                   # 安全距离
 
     # Optimization 参数
     sdf_opimiz_times_max: 10000           # 最大优化步数
@@ -61,8 +61,8 @@ NTUController:
     sdf_opimiz_weight_safety: 10.0         # 安全性权重
 
     # 局部costmap参数（用于SDF优化区域计算）
-    width: 10.0                           # 局部costmap宽度（米）
-    height: 10.0                          # 局部costmap高度（米）
+    width: 5.0                           # 局部costmap宽度（米）
+    height: 5.0                          # 局部costmap高度（米）
 
     # 车辆footprint（机器人轮廓，矩形四个角点，相对于机器人中心）
     footprint: [[0.45, 0.30], [0.45, -0.30], [-0.45, -0.30], [-0.45, 0.30]]

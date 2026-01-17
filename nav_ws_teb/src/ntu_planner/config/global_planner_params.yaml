@@ -1,0 +1,107 @@
+# Global Planner Configuration
+# 基于源码: navigation/global_planner/src/planner_core.cpp
+# 所有参数均从源码验证，无冗余参数
+
+GlobalPlanner:
+  # ============================================================================
+  # 静态参数 (初始化时加载，运行时不可改)
+  # 来源: planner_core.cpp 第104-147行
+  # ============================================================================
+  use_dijkstra: true                  # true=Dijkstra算法, false=A*算法
+                                      # 默认: true
+                                      # Dijkstra: 搜索全面，找全局最优解
+                                      # A*: 启发式搜索，更快但可能非最优
+
+  use_quadratic: true                  # 是否使用二次插值计算势场
+                                      # 默认: true
+                                      # true: 路径平滑连续
+                                      # false: 使用简单势场，路径可能锯齿状
+
+  use_grid_path: false                 # 路径生成方式
+                                      # 默认: false
+                                      # false: 梯度下降生成平滑路径（推荐）
+                                      # true: 沿网格生成路径（测试用）
+
+  old_navfn_behavior: false            # 是否兼容旧版navfn行为
+                                      # 默认: false
+                                      # false: 使用优化算法和精确起点
+                                      # true: 向后兼容模式
+
+  allow_unknown: true                  # 是否允许路径穿过未知区域
+                                      # 默认: true
+                                      # true: 可穿过未知区域（探索模式）
+                                      # false: 未知区域视为障碍物
+
+  planner_window_x: 0.0                # X方向规划窗口大小（米）
+                                      # 默认: 0.0
+                                      # 0.0: 使用整个代价地图
+                                      # >0.0: 仅在机器人周围窗口内规划
+
+  planner_window_y: 0.0                # Y方向规划窗口大小（米）
+                                      # 默认: 0.0
+
+  default_tolerance: 0.0               # 目标点默认容差（米）
+                                      # 默认: 0.0
+                                      # 0.0: 必须精确到达目标
+                                      # >0.0: 允许容差范围内
+
+  publish_scale: 100                   # 势场可视化的缩放因子
+                                      # 默认: 100
+                                      # 范围: 1-255
+                                      # 用于调整势场颜色映射
+
+  outline_map: true                    # 是否在代价地图边缘添加轮廓
+                                      # 默认: true
+                                      # true: 防止路径贴近地图边缘
+                                      # false: 不添加
+
+  # ============================================================================
+  # 动态可重配置参数 (运行时可通过 dynamic_reconfigure 修改)
+  # 来源: planner_core.cpp 第162-169行 + GlobalPlanner.cfg
+  # ============================================================================
+  lethal_cost: 253                     # 致命障碍物代价值
+                                      # 默认: 253
+                                      # 范围: 1-255
+                                      # 机器人无法通过的区域
+
+  neutral_cost: 50                     # 自由空间基础代价
+                                      # 默认: 50
+                                      # 范围: 1-255
+                                      # 无障碍物区域的基础代价
+
+  cost_factor: 3.5                     # 代价缩放因子 ⭐核心参数
+                                      # 默认: 3.0 (cfg文件)
+                                      # 范围: 0.01-5.0
+                                      # 阿克曼车推荐: 3.0-4.0
+                                      # 效果: 值越大，路径越重视代价地图的障碍物代价
+                                      # 公式: cost = neutral_cost + cost_factor * costmap_value
+                                      # 注意: 必须配合 inflation_radius 使用才有效
+
+  publish_potential: true              # 是否发布势场话题
+                                      # 默认: true
+                                      # true: 发布到 ~/potential (占用带宽)
+                                      # false: 不发布，节省资源
+
+  orientation_mode: 2                  # 路径点方向计算模式
+                                      # 默认: 1 (Forward)
+                                      # 0: None - 不计算方向
+                                      # 1: Forward - 朝向前方路径点
+                                      # 2: Interpolate - 插值平滑方向
+                                      # 3: ForwardThenInterpolate
+                                      # 4: Backward - 朝向后方
+                                      # 5: Leftward - 朝向左侧
+                                      # 6: Rightward - 朝向右侧
+
+  orientation_window_size: 1           # 方向计算窗口大小（路径点数）
+                                      # 默认: 1
+                                      # 范围: 1-255
+                                      # 用于插值模式平滑方向
+
+  # ============================================================================
+  # 调参指南
+  # ============================================================================
+  # 1. 路径远离障碍物: 增大 cost_factor (2.5-4.0)
+  # 2. 路径贴近障碍物: 降低 cost_factor (<1.5)
+  # 3. 路径更平滑: use_quadratic=true + orientation_mode=2
+  # 4. 计算加速: use_dijkstra=false (A*) + publish_potential=false
+  # 5. 限制搜索范围: planner_window_x/y > 0
