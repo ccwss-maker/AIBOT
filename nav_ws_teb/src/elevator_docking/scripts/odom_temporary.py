@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+odom_temporary.py - 临时里程计节点
+
+功能：
+- 订阅 /odom 话题，发布相对于初始位置的临时里程计 /odom_temporary
+- 支持通过 /reset_odom_temporary 话题重置原点
+- 用于停车控制器的相对位置控制
+"""
 import rospy
 import tf
 from nav_msgs.msg import Odometry
@@ -7,18 +15,30 @@ from geometry_msgs.msg import Quaternion
 from std_msgs.msg import Empty
 import math
 
-class OdomZero:
+class OdomTemporary:
     def __init__(self):
-        self.pub = rospy.Publisher("/odom_temporary", Odometry, queue_size=50)
+        # 获取话题名称参数 (支持命名空间)
+        odom_input_topic = rospy.get_param("~odom_input_topic", "/odom")
+        odom_output_topic = rospy.get_param("~odom_output_topic", "/odom_temporary")
+        reset_topic = rospy.get_param("~reset_topic", "/reset_odom_temporary")
+        self.output_frame_id = rospy.get_param("~output_frame_id", "local_map")
+
+        self.pub = rospy.Publisher(odom_output_topic, Odometry, queue_size=50)
 
         self.has_origin = False
         self.x0 = self.y0 = 0.0
         self.yaw0 = 0.0
 
-        rospy.Subscriber("/odom", Odometry, self.cb, queue_size=50)
-        rospy.Subscriber("/reset_odom_temporary", Empty, self.reset_cb, queue_size=10)
+        rospy.Subscriber(odom_input_topic, Odometry, self.odom_callback, queue_size=50)
+        rospy.Subscriber(reset_topic, Empty, self.reset_callback, queue_size=10)
 
-    def cb(self, msg: Odometry):
+        rospy.loginfo("OdomTemporary node initialized")
+        rospy.loginfo("  Input: %s", odom_input_topic)
+        rospy.loginfo("  Output: %s", odom_output_topic)
+        rospy.loginfo("  Reset: %s", reset_topic)
+        rospy.loginfo("  Frame: %s", self.output_frame_id)
+
+    def odom_callback(self, msg):
         # 取当前位姿
         x = msg.pose.pose.position.x
         y = msg.pose.pose.position.y
@@ -35,7 +55,7 @@ class OdomZero:
         dx_w = x - self.x0
         dy_w = y - self.y0
 
-        # 旋转清零：把位移旋到“初始朝向坐标系”
+        # 旋转清零：把位移旋到"初始朝向坐标系"
         c = math.cos(-self.yaw0)
         s = math.sin(-self.yaw0)
         dx = c * dx_w - s * dy_w
@@ -54,7 +74,7 @@ class OdomZero:
 
         out = Odometry()
         out.header = msg.header
-        out.header.frame_id = "local_map"      # 也可改成 "odom_temporary"
+        out.header.frame_id = self.output_frame_id
         out.child_frame_id = msg.child_frame_id
 
         out.pose = msg.pose
@@ -63,16 +83,16 @@ class OdomZero:
         out.pose.pose.position.z = msg.pose.pose.position.z
         out.pose.pose.orientation = Quaternion(*q_rel)
 
-        out.twist = msg.twist  # 速度直接透传（一般没问题）
+        out.twist = msg.twist  # 速度直接透传
 
         self.pub.publish(out)
 
-    def reset_cb(self, msg):
+    def reset_callback(self, msg):
         """Reset the origin to current position"""
         rospy.loginfo("Resetting odometry origin")
         self.has_origin = False
 
 if __name__ == "__main__":
-    rospy.init_node("odom_zero_node")
-    OdomZero()
+    rospy.init_node("odom_temporary_node")
+    OdomTemporary()
     rospy.spin()

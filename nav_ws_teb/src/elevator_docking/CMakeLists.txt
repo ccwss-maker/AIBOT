@@ -90,6 +90,7 @@ include_directories(
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
   src/elevator_detector.cpp
+  src/parking_controller.cpp
 )
 
 add_dependencies(${PROJECT_NAME}
@@ -170,4 +171,11 @@ install(DIRECTORY config/
 ## Mark launch files for installation
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+## Mark Python scripts for installation
+catkin_install_python(PROGRAMS
+  scripts/odom_temporary.py
+  scripts/test_docking_client.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

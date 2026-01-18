@@ -1,14 +1,29 @@
 <launch>
-  <group ns="robot1">
+  <!-- Robot namespace argument - can be overridden when including this launch file -->
+  <arg name="robot_ns" default="robot1" />
 
-    <!-- Odometry zero node (odom.py) -->
-    <node pkg="elevator_docking" type="odom.py" name="odom_zero_node" output="screen"/>
+  <!-- Action server name (relative to node namespace) -->
+  <arg name="action_server_name" default="docking" />
+
+  <group ns="$(arg robot_ns)">
+
+    <!-- Odometry temporary node -->
+    <node pkg="elevator_docking" type="odom_temporary.py" name="odom_temporary_node" output="screen">
+      <param name="odom_input_topic" value="/odom" />
+      <param name="odom_output_topic" value="/odom_temporary" />
+      <param name="reset_topic" value="/reset_odom_temporary" />
+      <param name="output_frame_id" value="local_map" />
+    </node>
 
     <!-- Elevator Docking Action Server -->
     <node pkg="elevator_docking" type="elevator_docking_server_node" name="elevator_docking_server" output="screen">
-      <!-- Load detector configuration -->
+      <!-- Action server name parameter -->
+      <param name="action_server_name" value="$(arg action_server_name)" />
+
+      <!-- Load detector configuration into detector sub-namespace -->
       <rosparam file="$(find elevator_docking)/config/elevator_detection.yaml" command="load" ns="detector" />
-      <!-- Load controller configuration -->
+
+      <!-- Load controller configuration into controller sub-namespace -->
       <rosparam file="$(find elevator_docking)/config/docking_control.yaml" command="load" ns="controller" />
     </node>
 

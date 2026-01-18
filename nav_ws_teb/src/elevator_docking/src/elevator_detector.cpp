@@ -8,7 +8,7 @@ namespace elevator_docking
 
 ElevatorDetector::ElevatorDetector(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
   : nh_(nh)
-  , private_nh_(private_nh, "detector")  // 使用detector子命名空间
+  , private_nh_(private_nh)  // 直接使用传入的命名空间，由调用者设置子命名空间
   , merged_cloud_(new pcl::PointCloud<pcl::PointXYZ>())
   , elevator_detected_(false)
 {

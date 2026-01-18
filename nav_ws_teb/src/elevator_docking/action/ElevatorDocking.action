@@ -1,11 +1,22 @@
 # Goal
-string command  # "detection", "in", "out"
+# Commands:
+#   "detection" - Detect elevator and return position/angle
+#   "in"        - Detect elevator and drive into it
+#   "out"       - Drive out of elevator (reverse of entry)
+#   "execute"   - Execute direct movement to specified x, y, yaw
+string command
+
+# Target position for "execute" command (ignored for other commands)
+float64 target_x      # Target X position (meters)
+float64 target_y      # Target Y position (meters)
+float64 target_yaw    # Target yaw angle (radians)
 
 ---
 
 # Result
 bool success
 string message
+
 # Detection result (only valid when command is "detection")
 float64 center_x
 float64 center_y
