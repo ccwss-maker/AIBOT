@@ -17,4 +17,4 @@ if __name__ == '__main__':
     msg.data = "GOAL_ARRIVED"
     pub.publish(msg)
     
-    rospy.loginfo("Published 'GOAL_ARRIVED' to /signal")
+    rospy.loginfo("Published 'RELOCATION_RECEIVED' to /signal")

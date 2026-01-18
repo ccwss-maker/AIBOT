@@ -17,7 +17,7 @@ map_height: 5.0                      # 地图高度 (米)，默认: 10.0
 # ==============================================================================
 # 传感器配置 (必须是LaserScan类型)
 # ==============================================================================
-observation_sources: vanjee_front_sensor vanjee_back_sensor
+observation_sources: vanjee_front_sensor vanjee_back_sensor laser_scan_sensor
 
 # 前置雷达传感器
 vanjee_front_sensor:
@@ -29,6 +29,9 @@ vanjee_back_sensor:
   topic: /back_filtered_points
   sensor_frame: vanjee_lidar_back
 
+laser_scan_sensor:
+  topic: /local_map_laserscan
+  sensor_frame: local_map
 # ==============================================================================
 # 发布话题配置
 # ==============================================================================
