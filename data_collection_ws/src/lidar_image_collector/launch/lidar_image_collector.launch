@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- 节点名称 -->
+  <arg name="node_name" default="lidar_image_collector"/>
+
+  <!-- 配置文件路径 -->
+  <arg name="config_file" default="$(find lidar_image_collector)/config/lidar_image_collector.yaml"/>
+
+  <!-- Lidar Image Collector 节点 -->
+  <node name="$(arg node_name)" pkg="lidar_image_collector" type="lidar_image_collector_node" output="screen">
+    <!-- 加载配置文件 -->
+    <rosparam command="load" file="$(arg config_file)"/>
+  </node>
+
+  <!-- 可选：启动 rqt_reconfigure 用于动态调整参数 -->
+  <!-- <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure" output="screen"/> -->
+
+  <!-- 可选：启动 image_view 查看生成的图像 -->
+  <!-- <node name="image_view" pkg="image_view" type="image_view" output="screen">
+    <remap from="image" to="/lidar_image"/>
+  </node> -->
+
+  <!-- 可选：启动 rviz 可视化 -->
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find lidar_image_collector)/rviz/lidar_image_collector.rviz"/> -->
+
+</launch>

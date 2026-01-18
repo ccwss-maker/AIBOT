@@ -1,0 +1,1 @@
+rosbag record -O lidar_image.bag /lidar_image
