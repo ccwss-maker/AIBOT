@@ -76,7 +76,7 @@ merge_distance_threshold: 0.2       # 平行线合并法向距离阈值 (米)，
 
 # 电梯识别参数
 parallel_angle_threshold: 10.0       # 平行判断角度阈值 (度)
-perpendicular_angle_threshold: 10.0  # 垂直判断角度阈值 (度)
+max_parallel_group_centroid_distance: 0.3  # 平行线组形心最大距离阈值 (米)，用于区分电梯盒子和杂物
 
 # ==============================================================================
 # 可视化配置

@@ -131,7 +131,7 @@ void ElevatorDetector::loadParameters()
   // 电梯识别参数
   // ============================================================================
   private_nh_.param<double>("parallel_angle_threshold", parallel_angle_threshold_, 10.0);
-  private_nh_.param<double>("perpendicular_angle_threshold", perpendicular_angle_threshold_, 10.0);
+  private_nh_.param<double>("max_parallel_group_centroid_distance", max_parallel_group_centroid_distance_, 0.3);
 
   // ============================================================================
   // 可视化参数
@@ -256,7 +256,7 @@ void ElevatorDetector::reconfigureCallback(elevator_docking::ElevatorDockingConf
 
   // 电梯识别参数
   parallel_angle_threshold_ = config.parallel_angle_threshold;
-  perpendicular_angle_threshold_ = config.perpendicular_angle_threshold;
+  max_parallel_group_centroid_distance_ = config.max_parallel_group_centroid_distance;
 
   // 可视化参数
   marker_lifetime_ = config.marker_lifetime;
@@ -326,9 +326,9 @@ void ElevatorDetector::laserScanCallback(const sensor_msgs::LaserScan::ConstPtr&
       if (publish_elevator_marker_) {
         publishElevatorMarker(result);
       }
-    } else {
-      elevator_detected_ = false;
     }
+    // 注意：检测失败时不再清除 elevator_detected_ 标志
+    // 这样可以保留之前成功的检测结果，由 runDetection() 选择置信度最高的
   }
 
   
@@ -1151,31 +1151,108 @@ bool ElevatorDetector::connectParallelGroups(const std::vector<std::pair<pcl::Po
   //   ROS_INFO("  Group %zu: %zu lines", i, groups[i].size());
   // }
 
-  // 步骤2: 验证组数和每组的线条数
+  // 步骤2: 初步验证组数
   if (groups.size() < 2) {
     ROS_ERROR("Expected at least 2 parallel groups, but found %zu groups. Cannot form rectangle.", groups.size());
     return false;
   }
 
-  // 如果有超过2组，过滤掉不是2条线的组
-  if (groups.size() > 2) {
-    std::vector<std::vector<int>> filtered_groups;
-    for (size_t i = 0; i < groups.size(); ++i) {
-      if (groups[i].size() == 2) {
-        filtered_groups.push_back(groups[i]);
-      } else {
-        ROS_DEBUG("Removing group %zu: has %zu lines (expected 2)", i, groups[i].size());
-      }
-    }
-    groups = filtered_groups;
-    
-    ROS_INFO("After size filtering: %zu groups remaining", groups.size());
-    for (size_t i = 0; i < groups.size(); ++i) {
-      ROS_INFO("  Group %zu: %zu lines", i, groups[i].size());
+  // 步骤2.1: 过滤掉不是2条线的组
+  std::vector<std::vector<int>> filtered_groups;
+  for (size_t i = 0; i < groups.size(); ++i) {
+    if (groups[i].size() == 2) {
+      filtered_groups.push_back(groups[i]);
+    } else {
+      ROS_DEBUG("Removing group %zu: has %zu lines (expected 2)", i, groups[i].size());
     }
   }
+  groups = filtered_groups;
 
-  // 最终验证：必须是2组，每组2条线
+  ROS_INFO("After size filtering: %zu groups remaining", groups.size());
+  for (size_t i = 0; i < groups.size(); ++i) {
+    ROS_INFO("  Group %zu: %zu lines", i, groups[i].size());
+  }
+
+  // 步骤2.2: 基于平行线组形心距离的滤波
+  // 计算每个组的形心（每组两条线各自的中点，再求这两个中点的中点）
+  // 如果是电梯的盒子，两组平行线的形心应该靠得很近；如果是杂物，形心距离会很远
+  if (groups.size() > 2) {
+    std::vector<std::vector<int>> centroid_filtered_groups;
+
+    // 计算每组的形心
+    auto computeGroupCentroid = [&](const std::vector<int>& group) -> pcl::PointXYZ {
+      pcl::PointXYZ centroid;
+      centroid.x = 0.0;
+      centroid.y = 0.0;
+      centroid.z = 0.0;
+
+      // 计算每条线的中点，然后求平均
+      for (int line_idx : group) {
+        const auto& line = merged_lines[line_idx];
+        double mid_x = (line.first.x + line.second.x) / 2.0;
+        double mid_y = (line.first.y + line.second.y) / 2.0;
+        centroid.x += mid_x;
+        centroid.y += mid_y;
+      }
+
+      centroid.x /= group.size();
+      centroid.y /= group.size();
+
+      return centroid;
+    };
+
+    // 计算组间形心距离
+    auto computeCentroidDistance = [](const pcl::PointXYZ& c1, const pcl::PointXYZ& c2) -> double {
+      double dx = c1.x - c2.x;
+      double dy = c1.y - c2.y;
+      return std::sqrt(dx * dx + dy * dy);
+    };
+
+    ROS_INFO("Computing group centroids for %zu groups", groups.size());
+
+    // 对于每组，检查是否与其他组的形心距离在合理范围内
+    for (size_t i = 0; i < groups.size(); ++i) {
+      if (groups[i].size() != 2) {
+        continue;
+      }
+
+      pcl::PointXYZ centroid_i = computeGroupCentroid(groups[i]);
+      bool valid_group = false;
+
+      // 检查与其他组的距离
+      for (size_t j = 0; j < groups.size(); ++j) {
+        if (i == j || groups[j].size() != 2) {
+          continue;
+        }
+
+        pcl::PointXYZ centroid_j = computeGroupCentroid(groups[j]);
+        double distance = computeCentroidDistance(centroid_i, centroid_j);
+
+        ROS_INFO("  Distance between group %zu and %zu centroids: %.3f m", i, j, distance);
+
+        // 如果形心距离小于阈值，说明是电梯的盒子结构
+        if (distance <= max_parallel_group_centroid_distance_) {
+          valid_group = true;
+          break;
+        }
+      }
+
+      if (valid_group) {
+        centroid_filtered_groups.push_back(groups[i]);
+        ROS_INFO("  Group %zu: centroid=(%.2f, %.2f) - KEPT (close to another group)",
+                 i, centroid_i.x, centroid_i.y);
+      } else {
+        ROS_INFO("  Group %zu: centroid=(%.2f, %.2f) - REMOVED (too far from other groups)",
+                 i, centroid_i.x, centroid_i.y);
+      }
+    }
+
+    groups = centroid_filtered_groups;
+
+    ROS_INFO("After centroid distance filtering: %zu groups remaining", groups.size());
+  }
+
+  // 步骤3: 最终验证 - 必须是2组，每组2条线
   if (groups.size() != 2) {
     ROS_ERROR("After filtering, expected 2 parallel groups, but found %zu groups. Cannot form rectangle.", groups.size());
     return false;
@@ -1189,7 +1266,7 @@ bool ElevatorDetector::connectParallelGroups(const std::vector<std::pair<pcl::Po
 
   ROS_INFO("Valid rectangle structure detected: 2 groups with 2 lines each");
 
-  // 步骤3: 对于每组的每条线，与另一组的线求交点
+  // 步骤4: 对于每组的每条线，与另一组的线求交点
   for (size_t group_idx = 0; group_idx < 2; ++group_idx) {
     size_t other_group_idx = 1 - group_idx;
 
@@ -1216,7 +1293,7 @@ bool ElevatorDetector::connectParallelGroups(const std::vector<std::pair<pcl::Po
         }
       }
 
-      // 步骤4: 用2个交点连成新线段替代原线段
+      // 步骤5: 用2个交点连成新线段替代原线段
       if (intersections.size() == 2) {
         connected_lines.push_back(std::make_pair(intersections[0], intersections[1]));
         // ROS_INFO("  Line %d connected with 2 intersections: (%.2f,%.2f) - (%.2f,%.2f)",

@@ -370,6 +370,7 @@ private:
   // 电梯识别参数
   double parallel_angle_threshold_;    // 平行判断角度阈值（度）
   double perpendicular_angle_threshold_; // 垂直判断角度阈值（度）
+  double max_parallel_group_centroid_distance_; // 平行线组形心最大距离阈值（米）
 
   // 可视化参数
   double marker_lifetime_;
