@@ -20,8 +20,9 @@ include_directories(
 )
 
 catkin_install_python(PROGRAMS
-  scripts/dispatch_node.py
-  scripts/goal_pub_simulator.py
+  scripts/dispatch_node_mbf.py
+  scripts/goal_pub_simulator_from_rviz.py
+  scripts/goal_pub_simulator_specific_position.py
   scripts/goal_pub_stop_simulator.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

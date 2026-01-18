@@ -8,7 +8,8 @@ case $1 in
       --tab --title="vanjee_lidar_sdk"  --command="bash -c 'roslaunch vanjee_lidar_sdk dual_716mini.launch; exec bash'"\
       --tab --title="fast_lio"          --command="bash -c 'roslaunch fast_lio localization_avia.launch; exec bash'" \
       --tab --title="dispatch_control"  --command="bash -c 'rosrun dispatch_control dispatch_node_mbf.py; exec bash'" \
-      --tab --title="ntu_planner"       --command="bash -c 'roslaunch ntu_planner move_base.launch; exec bash'"
+      --tab --title="ntu_planner"       --command="bash -c 'roslaunch ntu_planner move_base.launch; exec bash'" \
+      --tab --title="elevator_docking"  --command="bash -c 'roslaunch elevator_docking elevator_docking_full.launch; exec bash'"
     ;;
   stop)
     echo "Killing all related ROS processes..."
@@ -18,6 +19,7 @@ case $1 in
     pkill -f "roslaunch fast_lio"
     pkill -f "rosrun dispatch_control"
     pkill -f "roslaunch ntu_planner"
+    pkill -f "roslaunch elevator_docking"
     ;;
   *)
     echo "Usage: $0 {start|stop}"

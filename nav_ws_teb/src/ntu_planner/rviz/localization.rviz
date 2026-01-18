@@ -26,7 +26,7 @@ Panels:
   - Class: rviz/Time
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: back filtered
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -747,7 +747,7 @@ Visualization Manager:
             {}
           Queue Size: 100
           Value: true
-      Enabled: false
+      Enabled: true
       Name: Elevator Docking
   Enabled: true
   Global Options:
@@ -777,7 +777,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 18.200048446655273
+      Distance: 7.4379167556762695
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -785,17 +785,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: -2.611334800720215
-        Y: 2.6465835571289062
+        X: -0.8128211498260498
+        Y: 1.7203142642974854
         Z: -2.661723192431964e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3147965669631958
+      Pitch: 1.4897964000701904
       Target Frame: base_footprint
-      Yaw: 1.1934900283813477
+      Yaw: 1.7034895420074463
     Saved: ~
 Window Geometry:
   Displays:
