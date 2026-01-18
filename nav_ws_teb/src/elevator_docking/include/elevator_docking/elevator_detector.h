@@ -8,7 +8,7 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
 #include <dynamic_reconfigure/server.h>
-#include <elevator_docking/ElevatorDockingConfig.h>
+#include <elevator_docking/ElevatorDetectionConfig.h>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -106,7 +106,7 @@ private:
    * @param config 新的配置
    * @param level 配置级别
    */
-  void reconfigureCallback(elevator_docking::ElevatorDockingConfig& config, uint32_t level);
+  void reconfigureCallback(elevator_docking::ElevatorDetectionConfig& config, uint32_t level);
   
   /**
    * @brief LaserScan回调函数
@@ -309,7 +309,7 @@ private:
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   
   // Dynamic reconfigure
-  std::shared_ptr<dynamic_reconfigure::Server<elevator_docking::ElevatorDockingConfig>> dyn_reconfig_server_;
+  std::shared_ptr<dynamic_reconfigure::Server<elevator_docking::ElevatorDetectionConfig>> dyn_reconfig_server_;
   
   // 订阅器和发布器
   std::map<std::string, ros::Subscriber> laser_subscribers_;

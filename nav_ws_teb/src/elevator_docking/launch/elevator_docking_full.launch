@@ -6,8 +6,10 @@
 
     <!-- Elevator Docking Action Server -->
     <node pkg="elevator_docking" type="elevator_docking_server_node" name="elevator_docking_server" output="screen">
-      <!-- Load all configuration from YAML file -->
-      <rosparam file= "$(find elevator_docking)/config/elevator_docking.yaml" command="load" ns="" />
+      <!-- Load detector configuration -->
+      <rosparam file="$(find elevator_docking)/config/elevator_detection.yaml" command="load" ns="detector" />
+      <!-- Load controller configuration -->
+      <rosparam file="$(find elevator_docking)/config/docking_control.yaml" command="load" ns="controller" />
     </node>
 
   </group>

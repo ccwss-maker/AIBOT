@@ -12,20 +12,23 @@ ElevatorDockingServer::ElevatorDockingServer(ros::NodeHandle& nh, ros::NodeHandl
   , stored_y_(0.0)
   , stored_x_(0.0)
 {
+  // 使用controller子命名空间读取参数
+  ros::NodeHandle controller_nh(private_nh_, "controller");
+
   // Load control parameters
-  private_nh_.param<double>("control_rate", control_rate_, 20.0);
-  private_nh_.param<double>("yaw_angular_vel", yaw_angular_vel_, 0.1);
-  private_nh_.param<double>("y_linear_vel", y_linear_vel_, 0.1);
-  private_nh_.param<double>("x_linear_vel", x_linear_vel_, 0.1);
-  private_nh_.param<double>("x_backward_vel", x_backward_vel_, 0.1);
+  controller_nh.param<double>("control_rate", control_rate_, 20.0);
+  controller_nh.param<double>("yaw_angular_vel", yaw_angular_vel_, 0.1);
+  controller_nh.param<double>("y_linear_vel", y_linear_vel_, 0.1);
+  controller_nh.param<double>("x_linear_vel", x_linear_vel_, 0.1);
+  controller_nh.param<double>("x_backward_vel", x_backward_vel_, 0.1);
 
   // Load control tolerances
-  private_nh_.param<double>("yaw_tolerance", yaw_tolerance_, 0.05);
-  private_nh_.param<double>("y_tolerance", y_tolerance_, 0.02);
-  private_nh_.param<double>("x_tolerance", x_tolerance_, 0.02);
+  controller_nh.param<double>("yaw_tolerance", yaw_tolerance_, 0.05);
+  controller_nh.param<double>("y_tolerance", y_tolerance_, 0.02);
+  controller_nh.param<double>("x_tolerance", x_tolerance_, 0.02);
 
   // Load detection parameters
-  private_nh_.param<double>("detection_duration", detection_duration_, 1.0);
+  controller_nh.param<double>("detection_duration", detection_duration_, 1.0);
 
   ROS_INFO("Control parameters loaded:");
   ROS_INFO("  control_rate: %.1f Hz", control_rate_);
@@ -34,6 +37,10 @@ ElevatorDockingServer::ElevatorDockingServer(ros::NodeHandle& nh, ros::NodeHandl
   ROS_INFO("  x: vel=%.2f m/s, tol=%.3f m", x_linear_vel_, x_tolerance_);
   ROS_INFO("  x_backward: vel=%.2f m/s", x_backward_vel_);
   ROS_INFO("  detection_duration: %.1f s", detection_duration_);
+
+  // Setup dynamic reconfigure server
+  dyn_reconfig_server_ = std::make_shared<dynamic_reconfigure::Server<elevator_docking::DockingControlConfig>>(controller_nh);
+  dyn_reconfig_server_->setCallback(boost::bind(&ElevatorDockingServer::reconfigureCallback, this, _1, _2));
 
   // Create detector (disabled by default, enabled on demand)
   detector_ = std::make_shared<ElevatorDetector>(nh_, private_nh_);
@@ -658,6 +665,34 @@ bool ElevatorDockingServer::driveX(double target_x, double tolerance)
   }
 
   return false;
+}
+
+void ElevatorDockingServer::reconfigureCallback(elevator_docking::DockingControlConfig& config, uint32_t level)
+{
+  ROS_INFO("DockingControl reconfigure request received");
+
+  // Update control parameters
+  control_rate_ = config.control_rate;
+  detection_duration_ = config.detection_duration;
+
+  // Update velocity parameters
+  yaw_angular_vel_ = config.yaw_angular_vel;
+  y_linear_vel_ = config.y_linear_vel;
+  x_linear_vel_ = config.x_linear_vel;
+  x_backward_vel_ = config.x_backward_vel;
+
+  // Update tolerance parameters
+  yaw_tolerance_ = config.yaw_tolerance;
+  y_tolerance_ = config.y_tolerance;
+  x_tolerance_ = config.x_tolerance;
+
+  ROS_INFO("Updated control parameters:");
+  ROS_INFO("  control_rate: %.1f Hz", control_rate_);
+  ROS_INFO("  detection_duration: %.1f s", detection_duration_);
+  ROS_INFO("  yaw: vel=%.2f rad/s, tol=%.3f rad", yaw_angular_vel_, yaw_tolerance_);
+  ROS_INFO("  y: vel=%.2f m/s, tol=%.3f m", y_linear_vel_, y_tolerance_);
+  ROS_INFO("  x: vel=%.2f m/s, tol=%.3f m", x_linear_vel_, x_tolerance_);
+  ROS_INFO("  x_backward: vel=%.2f m/s", x_backward_vel_);
 }
 
 } // namespace elevator_docking

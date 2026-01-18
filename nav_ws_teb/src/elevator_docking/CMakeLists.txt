@@ -44,7 +44,8 @@ generate_messages(
 
 ## Generate dynamic reconfigure parameters
 generate_dynamic_reconfigure_options(
-  cfg/ElevatorDocking.cfg
+  cfg/ElevatorDetection.cfg
+  cfg/DockingControl.cfg
 )
 
 ###################################

@@ -10,6 +10,8 @@
 #include <std_msgs/Empty.h>
 #include <tf/tf.h>
 #include <memory>
+#include <dynamic_reconfigure/server.h>
+#include <elevator_docking/DockingControlConfig.h>
 
 namespace elevator_docking
 {
@@ -46,6 +48,9 @@ private:
   bool correctYaw(double target_yaw, double tolerance = -1.0);
   bool correctY(double target_y, double tolerance = -1.0);
   bool driveX(double target_x, double tolerance = -1.0);
+
+  // Dynamic reconfigure callback
+  void reconfigureCallback(elevator_docking::DockingControlConfig& config, uint32_t level);
 
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;
@@ -87,6 +92,9 @@ private:
   double stored_yaw_;
   double stored_y_;
   double stored_x_;
+
+  // Dynamic reconfigure server
+  std::shared_ptr<dynamic_reconfigure::Server<elevator_docking::DockingControlConfig>> dyn_reconfig_server_;
 };
 
 } // namespace elevator_docking

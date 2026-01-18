@@ -8,7 +8,7 @@ namespace elevator_docking
 
 ElevatorDetector::ElevatorDetector(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
   : nh_(nh)
-  , private_nh_(private_nh)
+  , private_nh_(private_nh, "detector")  // 使用detector子命名空间
   , merged_cloud_(new pcl::PointCloud<pcl::PointXYZ>())
   , elevator_detected_(false)
 {
@@ -23,7 +23,7 @@ ElevatorDetector::ElevatorDetector(ros::NodeHandle& nh, ros::NodeHandle& private
   setupPubSub();
 
   // 初始化dynamic reconfigure服务器
-  dyn_reconfig_server_ = std::make_shared<dynamic_reconfigure::Server<elevator_docking::ElevatorDockingConfig>>(private_nh_);
+  dyn_reconfig_server_ = std::make_shared<dynamic_reconfigure::Server<elevator_docking::ElevatorDetectionConfig>>(private_nh_);
   dyn_reconfig_server_->setCallback(boost::bind(&ElevatorDetector::reconfigureCallback, this, _1, _2));
 
   ROS_INFO("Elevator detector initialized successfully");
@@ -215,7 +215,7 @@ void ElevatorDetector::setupPubSub()
   }
 }
 
-void ElevatorDetector::reconfigureCallback(elevator_docking::ElevatorDockingConfig& config, uint32_t level)
+void ElevatorDetector::reconfigureCallback(elevator_docking::ElevatorDetectionConfig& config, uint32_t level)
 {
   ROS_INFO("Reconfigure request received");
 
