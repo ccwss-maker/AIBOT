@@ -2,7 +2,7 @@
   <group ns="robot1">
       <node name="map_server" pkg="map_server" type="map_server" args="$(find dispatch_control)/Map/ntuitive_align/2m/map.yaml"/>
 
-      <node pkg="ntu_planner" type="reload_planning_controller.py" name="reload_planning_controller" output="screen"/>
+      <!-- reload_planning_controller removed - map switching now handled by dispatch_node -->
 
       <!-- MBF (Move Base Flex) Node -->
       <node pkg="mbf_costmap_nav" type="mbf_costmap_nav" respawn="false" name="move_base_flex" output="screen">

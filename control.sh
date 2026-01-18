@@ -7,7 +7,7 @@ case $1 in
       --tab --title="livox_merge"       --command="bash -c 'roslaunch livox_merge livox_merge.launch; exec bash'" \
       --tab --title="vanjee_lidar_sdk"  --command="bash -c 'roslaunch vanjee_lidar_sdk dual_716mini.launch; exec bash'"\
       --tab --title="fast_lio"          --command="bash -c 'roslaunch fast_lio localization_avia.launch; exec bash'" \
-      --tab --title="dispatch_control"  --command="bash -c 'rosrun dispatch_control dispatch_node.py; exec bash'" \
+      --tab --title="dispatch_control"  --command="bash -c 'rosrun dispatch_control dispatch_node_mbf.py; exec bash'" \
       --tab --title="ntu_planner"       --command="bash -c 'roslaunch ntu_planner move_base.launch; exec bash'"
     ;;
   stop)
